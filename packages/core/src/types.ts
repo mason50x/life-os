@@ -1,4 +1,7 @@
-export type Provider = "gmail" | "outlook";
+export type Provider = "gmail" | "outlook" | "icloud";
+
+/** Providers connected via OAuth (iCloud uses an app-specific password instead). */
+export type OAuthProvider = Exclude<Provider, "icloud">;
 
 export interface ConnectedAccount {
   id: string;
@@ -74,7 +77,7 @@ export interface EmailProvider {
   trash(messageId: string): Promise<void>;
   markRead(messageId: string, read: boolean): Promise<void>;
   listLabels(): Promise<Label[]>;
-  /** Gmail: add/remove label ids. Outlook: `add` moves to folder id (first entry). */
+  /** Gmail: add/remove label ids. Outlook/iCloud: `add` moves to folder id (first entry). */
   modifyLabels(messageId: string, add: string[], remove: string[]): Promise<void>;
 }
 

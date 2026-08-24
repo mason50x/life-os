@@ -28,8 +28,9 @@ export const upsert = mutation({
   args: {
     serviceKey: v.string(),
     userId: v.string(),
-    provider: v.union(v.literal("gmail"), v.literal("outlook")),
+    provider: v.union(v.literal("gmail"), v.literal("outlook"), v.literal("icloud")),
     email: v.string(),
+    loginEmail: v.optional(v.string()),
     displayName: v.optional(v.string()),
     accessTokenEnc: v.string(),
     refreshTokenEnc: v.optional(v.string()),

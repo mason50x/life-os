@@ -65,7 +65,7 @@ export function registerLifeOsTools(server: McpServer, resolveSession: ResolveSe
     {
       title: "List connected accounts",
       description:
-        "List all email accounts (Gmail, Outlook) the user has connected to LifeOS. Call this first to learn which accounts are available.",
+        "List all email accounts (Gmail, Outlook, iCloud) the user has connected to LifeOS. Call this first to learn which accounts are available.",
       inputSchema: {},
     },
     async (_args, extra) => {
@@ -91,7 +91,7 @@ export function registerLifeOsTools(server: McpServer, resolveSession: ResolveSe
     {
       title: "Search emails",
       description:
-        "Search emails across one or all connected accounts. Gmail accounts support Gmail query syntax (from:, subject:, is:unread, newer_than:7d...); Outlook uses free-text search.",
+        "Search emails across one or all connected accounts. Gmail accounts support Gmail query syntax (from:, subject:, is:unread, newer_than:7d...); Outlook uses free-text search. iCloud supports a Gmail-like subset (from:, to:, subject:, is:unread, newer_than:7d, before:/after:, in:sent|archive|trash|<folder>) and searches the inbox unless in: says otherwise.",
       inputSchema: {
         query: z.string().describe("Search query"),
         account: account
@@ -109,7 +109,17 @@ export function registerLifeOsTools(server: McpServer, resolveSession: ResolveSe
         const results = await Promise.allSettled(
           accounts.map(async (email) => (await s.providerFor(email)).search(query, max_results)),
         );
-        const messages = results.flatMap((r) => (r.status === "fulfilled" ? r.value : []));
+        // Dedupe identical hits: iCloud send-as accounts share one mailbox, so
+        // the same message can come back once per connected address.
+        const seen = new Set<string>();
+        const messages = results
+          .flatMap((r) => (r.status === "fulfilled" ? r.value : []))
+          .filter((m) => {
+            const key = `${m.provider}:${m.id}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
         const failures = results
           .map((r, i) => (r.status === "rejected" ? `${accounts[i]}: ${r.reason}` : null))
           .filter(Boolean);
@@ -212,7 +222,8 @@ export function registerLifeOsTools(server: McpServer, resolveSession: ResolveSe
     "archive_email",
     {
       title: "Archive email",
-      description: "Archive a message (remove from inbox on Gmail, move to Archive on Outlook).",
+      description:
+        "Archive a message (remove from inbox on Gmail, move to Archive on Outlook/iCloud).",
       inputSchema: { account, message_id: z.string() },
     },
     async ({ account: acct, message_id }, extra) => {
@@ -266,7 +277,7 @@ export function registerLifeOsTools(server: McpServer, resolveSession: ResolveSe
     "list_labels",
     {
       title: "List labels/folders",
-      description: "List Gmail labels or Outlook mail folders for an account.",
+      description: "List Gmail labels, or Outlook/iCloud mail folders, for an account.",
       inputSchema: { account },
     },
     async ({ account: acct }, extra) => {
@@ -284,7 +295,7 @@ export function registerLifeOsTools(server: McpServer, resolveSession: ResolveSe
     {
       title: "Modify labels / move folder",
       description:
-        "Gmail: add/remove label ids on a message. Outlook: pass a folder id as the first `add` entry to move the message there.",
+        "Gmail: add/remove label ids on a message. Outlook/iCloud: pass a folder id as the first `add` entry to move the message there.",
       inputSchema: {
         account,
         message_id: z.string(),

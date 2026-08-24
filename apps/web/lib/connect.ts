@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { withAuth } from "@workos-inc/authkit-nextjs";
 import {
-  Provider,
+  OAuthProvider,
   exchangeCode,
   fetchProfile,
   googleAuthUrl,
@@ -15,11 +15,11 @@ import { appUrl, env } from "./env";
 
 const STATE_COOKIE = "lifeos_oauth_state";
 
-function redirectUri(provider: Provider): string {
+function redirectUri(provider: OAuthProvider): string {
   return `${appUrl()}/api/connect/${provider === "gmail" ? "google" : "microsoft"}/callback`;
 }
 
-export async function startConnect(provider: Provider): Promise<NextResponse> {
+export async function startConnect(provider: OAuthProvider): Promise<NextResponse> {
   const { user } = await withAuth({ ensureSignedIn: true });
   const state = `${user.id}.${randomBytes(16).toString("hex")}`;
   const url =
@@ -36,7 +36,7 @@ export async function startConnect(provider: Provider): Promise<NextResponse> {
   return res;
 }
 
-export async function finishConnect(provider: Provider, req: Request): Promise<NextResponse> {
+export async function finishConnect(provider: OAuthProvider, req: Request): Promise<NextResponse> {
   const { user } = await withAuth({ ensureSignedIn: true });
   const url = new URL(req.url);
   const dashboard = (params: string) => NextResponse.redirect(`${appUrl()}/dashboard?${params}`);

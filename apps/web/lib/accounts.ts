@@ -1,6 +1,8 @@
 import {
   ConnectedAccount,
   EmailProvider,
+  IcloudProvider,
+  OAuthProvider,
   Provider,
   createProvider,
   refreshAccessToken,
@@ -14,6 +16,7 @@ interface AccountDoc {
   userId: string;
   provider: Provider;
   email: string;
+  loginEmail?: string;
   displayName?: string;
   status: "active" | "needs_reauth" | "disconnected";
   accessTokenEnc: string;
@@ -22,7 +25,7 @@ interface AccountDoc {
   connectedAt: number;
 }
 
-function providerCredentials(provider: Provider) {
+function providerCredentials(provider: OAuthProvider) {
   return provider === "gmail"
     ? { clientId: env("GOOGLE_CLIENT_ID"), clientSecret: env("GOOGLE_CLIENT_SECRET") }
     : { clientId: env("MICROSOFT_CLIENT_ID"), clientSecret: env("MICROSOFT_CLIENT_SECRET") };
@@ -59,6 +62,18 @@ export async function getProviderForAccount(
     );
   }
 
+  // iCloud authenticates with a stored app-specific password — nothing to
+  // refresh. loginEmail (the primary iCloud address) signs in; doc.email is
+  // the send-as address for custom-domain/alias accounts.
+  if (doc.provider === "icloud") {
+    return new IcloudProvider(
+      doc.email,
+      async () => decryptSecret(doc.accessTokenEnc),
+      doc.loginEmail ?? doc.email,
+    );
+  }
+  const oauthProvider: OAuthProvider = doc.provider;
+
   const getAccessToken = async (): Promise<string> => {
     // Refresh when the cached access token is within 60s of expiry.
     if (doc.accessTokenExpiresAt > Date.now() + 60_000) {
@@ -67,10 +82,10 @@ export async function getProviderForAccount(
     if (!doc.refreshTokenEnc) {
       throw new Error(`Account ${doc.email} needs re-authentication (no refresh token).`);
     }
-    const creds = providerCredentials(doc.provider);
+    const creds = providerCredentials(oauthProvider);
     let tokens;
     try {
-      tokens = await refreshAccessToken(doc.provider, {
+      tokens = await refreshAccessToken(oauthProvider, {
         ...creds,
         refreshToken: decryptSecret(doc.refreshTokenEnc),
       });

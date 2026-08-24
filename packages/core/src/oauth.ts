@@ -1,4 +1,4 @@
-import { Provider } from "./types";
+import { OAuthProvider } from "./types";
 
 export interface TokenResponse {
   access_token: string;
@@ -68,7 +68,7 @@ async function tokenRequest(url: string, body: Record<string, string>): Promise<
 }
 
 export function exchangeCode(
-  provider: Provider,
+  provider: OAuthProvider,
   opts: { clientId: string; clientSecret: string; code: string; redirectUri: string },
 ): Promise<TokenResponse> {
   return tokenRequest(provider === "gmail" ? GOOGLE_TOKEN_URL : MICROSOFT_TOKEN_URL, {
@@ -81,7 +81,7 @@ export function exchangeCode(
 }
 
 export function refreshAccessToken(
-  provider: Provider,
+  provider: OAuthProvider,
   opts: { clientId: string; clientSecret: string; refreshToken: string },
 ): Promise<TokenResponse> {
   return tokenRequest(provider === "gmail" ? GOOGLE_TOKEN_URL : MICROSOFT_TOKEN_URL, {
@@ -95,7 +95,7 @@ export function refreshAccessToken(
 
 /** Fetch the authenticated user's email address for a freshly connected account. */
 export async function fetchProfile(
-  provider: Provider,
+  provider: OAuthProvider,
   accessToken: string,
 ): Promise<{ email: string; name?: string }> {
   if (provider === "gmail") {

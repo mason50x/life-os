@@ -17,12 +17,16 @@ export default defineSchema({
     .index("by_workos_id", ["workosUserId"])
     .index("by_email", ["email"]),
 
-  // Connected email accounts. Tokens are AES-256-GCM encrypted by the Next.js
-  // backend before they ever reach Convex; email content is never stored.
+  // Connected email accounts. Secrets (OAuth tokens, or the iCloud
+  // app-specific password in accessTokenEnc) are AES-256-GCM encrypted by the
+  // Next.js backend before they ever reach Convex; email content is never stored.
   emailAccounts: defineTable({
     userId: v.string(), // WorkOS user id
-    provider: v.union(v.literal("gmail"), v.literal("outlook")),
+    provider: v.union(v.literal("gmail"), v.literal("outlook"), v.literal("icloud")),
     email: v.string(),
+    // iCloud custom-domain/alias accounts: the primary iCloud address used to
+    // sign in, when it differs from `email` (the send-as address).
+    loginEmail: v.optional(v.string()),
     displayName: v.optional(v.string()),
     status: v.union(
       v.literal("active"),
