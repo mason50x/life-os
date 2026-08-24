@@ -1,0 +1,33 @@
+{
+  "name": "@lifeos/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "convex": "convex dev"
+  },
+  "dependencies": {
+    "@lifeos/core": "workspace:*",
+    "@lifeos/mcp": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "@workos-inc/authkit-nextjs": "^2.5.0",
+    "convex": "^1.24.0",
+    "jose": "^5.9.6",
+    "mcp-handler": "^1.0.1",
+    "next": "^15.3.3",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.0",
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "tailwindcss": "^4.1.0",
+    "typescript": "^5.7.2"
+  }
+}

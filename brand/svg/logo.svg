@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- LifeOS mark — "the plug". Sky→indigo gradient, live spark between the prongs. -->
+  <defs>
+    <linearGradient id="lifeos-g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#38bdf8"/>
+      <stop offset="1" stop-color="#6366f1"/>
+    </linearGradient>
+    <linearGradient id="lifeos-shine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.28"/>
+      <stop offset="0.6" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <g fill="url(#lifeos-g)">
+    <!-- prongs -->
+    <rect x="94" y="30" width="16" height="74" rx="8"/>
+    <rect x="146" y="30" width="16" height="74" rx="8"/>
+    <!-- collar -->
+    <rect x="70" y="96" width="116" height="20" rx="10"/>
+    <!-- bowl -->
+    <path d="M78 112 h100 v18 a50 54 0 0 1 -100 0 z"/>
+    <!-- neck -->
+    <rect x="114" y="176" width="28" height="18" rx="5"/>
+    <!-- cord -->
+    <rect x="122" y="190" width="12" height="40" rx="6"/>
+    <!-- live spark between the prongs -->
+    <path d="M128 50 C130.5 60.5 132 62 142.5 64.5 C132 67 130.5 68.5 128 79 C125.5 68.5 124 67 113.5 64.5 C124 62 125.5 60.5 128 50 Z"/>
+  </g>
+  <!-- soft top light on the bowl -->
+  <path d="M78 112 h100 v18 a50 54 0 0 1 -100 0 z" fill="url(#lifeos-shine)"/>
+</svg>
