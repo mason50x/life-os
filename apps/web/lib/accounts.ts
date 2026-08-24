@@ -1,7 +1,6 @@
 import {
   ConnectedAccount,
   EmailProvider,
-  IcloudProvider,
   OAuthProvider,
   Provider,
   createProvider,
@@ -66,6 +65,9 @@ export async function getProviderForAccount(
   // refresh. loginEmail (the primary iCloud address) signs in; doc.email is
   // the send-as address for custom-domain/alias accounts.
   if (doc.provider === "icloud") {
+    // Lazy: keeps the IMAP stack (imapflow/mailparser/nodemailer) out of the
+    // route's cold-start module graph.
+    const { IcloudProvider } = await import("@lifeos/core/icloud");
     return new IcloudProvider(
       doc.email,
       async () => decryptSecret(doc.accessTokenEnc),
@@ -111,5 +113,5 @@ export async function getProviderForAccount(
     return tokens.access_token;
   };
 
-  return createProvider(doc.provider, doc.email, getAccessToken);
+  return await createProvider(doc.provider, doc.email, getAccessToken);
 }

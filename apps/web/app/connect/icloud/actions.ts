@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { withAuth } from "@workos-inc/authkit-nextjs";
-import { IcloudProvider, ProviderApiError } from "@lifeos/core";
+import { ProviderApiError } from "@lifeos/core";
 import { api, convex, serviceKey } from "@/lib/convex";
 import { encryptSecret } from "@/lib/crypto";
 
@@ -49,7 +49,9 @@ export async function connectICloud(
   }
 
   try {
-    // Live IMAP login against Apple before storing anything.
+    // Live IMAP login against Apple before storing anything. Lazy import keeps
+    // the IMAP stack out of every other route's cold start.
+    const { IcloudProvider } = await import("@lifeos/core/icloud");
     await IcloudProvider.verify(email, password);
   } catch (e) {
     if (e instanceof ProviderApiError && e.status === 401) {
