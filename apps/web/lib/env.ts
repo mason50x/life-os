@@ -35,3 +35,28 @@ export function authkitDomain(): string {
   const raw = env("WORKOS_AUTHKIT_DOMAIN").replace(/\/$/, "");
   return raw.startsWith("http") ? raw : `https://${raw}`;
 }
+
+/**
+ * AuthKit OAuth callback URI. Prefer env (must match a WorkOS dashboard Redirect),
+ * then NEXT_PUBLIC_APP_URL, then the request host so middleware does not throw
+ * when NEXT_PUBLIC_WORKOS_REDIRECT_URI is unset in production.
+ */
+export function workosRedirectUri(req: { headers: { get(name: string): string | null } }): string {
+  const fromEnv = process.env.NEXT_PUBLIC_WORKOS_REDIRECT_URI ?? process.env.WORKOS_REDIRECT_URI;
+  if (fromEnv) return fromEnv.replace(/\/$/, "");
+
+  const fromApp = process.env.NEXT_PUBLIC_APP_URL;
+  if (fromApp) return `${fromApp.replace(/\/$/, "")}/callback`;
+
+  const rawHost = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
+  const host = rawHost?.split(",")[0]?.trim();
+  if (!host) {
+    throw new Error(
+      "AuthKit redirect URI is not configured. Set NEXT_PUBLIC_WORKOS_REDIRECT_URI in the Vercel project to the callback URL registered in WorkOS (e.g. https://lifeos.you/callback).",
+    );
+  }
+
+  const protoHeader = req.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+  const proto = protoHeader ?? (host.startsWith("localhost") || host.startsWith("127.0.0.1") ? "http" : "https");
+  return `${proto}://${host}/callback`;
+}

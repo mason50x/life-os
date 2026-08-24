@@ -1,14 +1,19 @@
 import { NextFetchEvent, NextRequest, NextResponse } from "next/server";
 import { authkitMiddleware } from "@workos-inc/authkit-nextjs";
-import { mcpHost } from "@/lib/env";
+import { mcpHost, workosRedirectUri } from "@/lib/env";
 
-const authkit = authkitMiddleware({
-  debug: true,
-  middlewareAuth: {
-    enabled: true,
-    unauthenticatedPaths: ["/"],
-  },
-});
+function runAuthkit(req: NextRequest, event: NextFetchEvent) {
+  // Built per request so redirectUri can fall back to the request host when
+  // NEXT_PUBLIC_WORKOS_REDIRECT_URI is missing (AuthKit throws otherwise).
+  return authkitMiddleware({
+    debug: true,
+    redirectUri: workosRedirectUri(req),
+    middlewareAuth: {
+      enabled: true,
+      unauthenticatedPaths: ["/"],
+    },
+  })(req, event);
+}
 
 // Browser-session routes: the only places AuthKit runs (the MCP endpoint and
 // /api/cli/* authenticate themselves via AuthKit JWT / LifeOS API key).
@@ -38,7 +43,7 @@ export default function middleware(req: NextRequest, event: NextFetchEvent) {
     return new NextResponse("Not Found", { status: 404 });
   }
 
-  if (SESSION_PATHS.some((re) => re.test(pathname))) return authkit(req, event);
+  if (SESSION_PATHS.some((re) => re.test(pathname))) return runAuthkit(req, event);
   return NextResponse.next();
 }
 
