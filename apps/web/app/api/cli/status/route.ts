@@ -1,6 +1,6 @@
 import { listAccounts } from "@/lib/accounts";
 import { resolveApiKeyUser, unauthorized } from "@/lib/apiAuth";
-import { appUrl } from "@/lib/env";
+import { mcpUrl } from "@/lib/env";
 
 export async function GET(req: Request) {
   const userId = await resolveApiKeyUser(req);
@@ -8,7 +8,7 @@ export async function GET(req: Request) {
   const accounts = await listAccounts(userId);
   return Response.json({
     userId,
-    mcpUrl: `${appUrl()}/mcp`,
+    mcpUrl: mcpUrl(),
     accounts: accounts.map((a) => ({
       email: a.email,
       provider: a.provider,

@@ -1,6 +1,5 @@
-import { metadataCors, resourceMetadataHandler } from "@/lib/oauthMetadata";
+import { metadataCors, rootResourceMetadata } from "@/lib/oauthMetadata";
 
-const handler = resourceMetadataHandler();
 const corsHandler = metadataCors();
 
-export { handler as GET, corsHandler as OPTIONS };
+export { rootResourceMetadata as GET, corsHandler as OPTIONS };

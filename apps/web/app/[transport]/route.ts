@@ -2,7 +2,7 @@ import { createMcpHandler, withMcpAuth } from "mcp-handler";
 import { createRemoteJWKSet, jwtVerify } from "jose";
 import { registerLifeOsTools, type LifeOsSession, type McpAuthInfo } from "@lifeos/mcp";
 import { getProviderForAccount, listAccounts } from "@/lib/accounts";
-import { appUrl, authkitDomain } from "@/lib/env";
+import { appUrl, authkitDomain, mcpHost, mcpUrl } from "@/lib/env";
 
 async function resolveSession(authInfo?: McpAuthInfo): Promise<LifeOsSession> {
   const userId = authInfo?.extra?.userId;
@@ -55,12 +55,22 @@ const verifyToken = async (_req: Request, bearerToken?: string) => {
 
 // resourceUrl here is the ORIGIN: withMcpAuth builds the WWW-Authenticate
 // resource_metadata URL as resourceUrl + resourceMetadataPath. The resource
-// identity itself (origin + /mcp) is declared in lib/oauthMetadata.ts.
-const authHandler = withMcpAuth(handler, verifyToken, {
+// identity itself is declared per-request in lib/oauthMetadata.ts. Two
+// handlers because the dedicated MCP subdomain's resource is its root (root
+// well-known form), while the app domain's resource is /mcp (path-suffixed).
+const appAuthHandler = withMcpAuth(handler, verifyToken, {
   required: true,
   resourceMetadataPath: "/.well-known/oauth-protected-resource/mcp",
   resourceUrl: appUrl(),
 });
+
+const mcpHostAuthHandler = mcpHost()
+  ? withMcpAuth(handler, verifyToken, {
+      required: true,
+      resourceMetadataPath: "/.well-known/oauth-protected-resource",
+      resourceUrl: mcpUrl(),
+    })
+  : null;
 
 // Root-level dynamic segment: only real MCP transports belong to this route;
 // anything else (stray top-level paths) is a plain 404, not an MCP 401.
@@ -72,7 +82,9 @@ const guarded = async (
 ): Promise<Response> => {
   const { transport } = await ctx.params;
   if (!TRANSPORTS.has(transport)) return new Response("Not Found", { status: 404 });
-  return authHandler(req);
+  const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
+  const useMcpHost = mcpHostAuthHandler !== null && host === mcpHost();
+  return (useMcpHost ? mcpHostAuthHandler : appAuthHandler)(req);
 };
 
 export { guarded as GET, guarded as POST, guarded as DELETE };
