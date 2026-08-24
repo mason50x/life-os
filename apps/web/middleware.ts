@@ -46,6 +46,6 @@ export default function middleware(req: NextRequest, event: NextFetchEvent) {
 // above decides what actually runs. Static assets are excluded.
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|icon.svg|apple-icon.png|opengraph-image.png).*)",
+    "/((?!_next/static|_next/image|favicon.ico|icon.svg|apple-icon.png|opengraph-image.png|logo.png).*)",
   ],
 };

@@ -1,11 +1,3 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
-  <g fill="#ffffff">
-    <rect x="94" y="30" width="16" height="74" rx="8"/>
-    <rect x="146" y="30" width="16" height="74" rx="8"/>
-    <rect x="70" y="96" width="116" height="20" rx="10"/>
-    <path d="M78 112 h100 v18 a50 54 0 0 1 -100 0 z"/>
-    <rect x="114" y="176" width="28" height="18" rx="5"/>
-    <rect x="122" y="190" width="12" height="40" rx="6"/>
-    <path d="M128 50 C130.5 60.5 132 62 142.5 64.5 C132 67 130.5 68.5 128 79 C125.5 68.5 124 67 113.5 64.5 C124 62 125.5 60.5 128 50 Z"/>
-  </g>
+  <path fill="#ffffff" fill-rule="evenodd" d="M36 36 H220 V220 H36 Z M72 84 H184 V112 H72 Z"/>
 </svg>
