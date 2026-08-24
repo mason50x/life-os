@@ -25,12 +25,37 @@ const handler = createMcpHandler(
     capabilities: { tools: {} },
   },
   {
-    // Served natively at /mcp (app/[transport]/route.ts) — no rewrite, so the
-    // request pathname mcp-handler validates matches what clients actually hit.
+    // mcp-handler 1.x matches req.url.pathname against `{basePath}/mcp` (and
+    // /sse, /message). The route lives at /[transport]; middleware may rewrite
+    // the MCP-host root `/` → `/mcp` for routing without changing req.url.
     basePath: "",
     maxDuration: 60,
   },
 );
+
+/**
+ * Point mcp-handler at the transport this route actually resolved.
+ * Next.js rewrites (MCP-host `/` → `/mcp`) update routing params but leave
+ * Request.url as the client path; without this, authenticated POSTs to `/`
+ * 404 inside mcp-handler after JWT verification.
+ */
+function requestForTransport(req: Request, transport: string): Request {
+  const url = new URL(req.url);
+  const expected = `/${transport}`;
+  const pathname = url.pathname.length > 1 ? url.pathname.replace(/\/$/, "") : url.pathname;
+  if (pathname === expected) return req;
+  url.pathname = expected;
+  const init: RequestInit & { duplex?: "half" } = {
+    method: req.method,
+    headers: req.headers,
+    signal: req.signal,
+  };
+  if (req.body) {
+    init.body = req.body;
+    init.duplex = "half";
+  }
+  return new Request(url, init);
+}
 
 // MCP clients authenticate with AuthKit-issued JWTs (AuthKit is the OAuth
 // authorization server; it supports dynamic client registration out of the box).
@@ -82,9 +107,10 @@ const guarded = async (
 ): Promise<Response> => {
   const { transport } = await ctx.params;
   if (!TRANSPORTS.has(transport)) return new Response("Not Found", { status: 404 });
-  const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
+  const routed = requestForTransport(req, transport);
+  const host = routed.headers.get("x-forwarded-host") ?? routed.headers.get("host");
   const useMcpHost = mcpHostAuthHandler !== null && host === mcpHost();
-  return (useMcpHost ? mcpHostAuthHandler : appAuthHandler)(req);
+  return (useMcpHost ? mcpHostAuthHandler : appAuthHandler)(routed);
 };
 
 export { guarded as GET, guarded as POST, guarded as DELETE };
