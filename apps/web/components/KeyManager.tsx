@@ -1,7 +1,20 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { KeyRound } from "lucide-react";
 import { createApiKey, deleteApiKey } from "@/app/dashboard/actions";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemSeparator,
+  ItemTitle,
+} from "@/components/ui/item";
 import { CopyButton } from "./CopyButton";
 
 interface KeyRow {
@@ -19,7 +32,7 @@ export function KeyManager({ keys }: { keys: KeyRow[] }) {
   return (
     <div className="space-y-4">
       <form
-        className="flex gap-3"
+        className="flex gap-2"
         onSubmit={(e) => {
           e.preventDefault();
           startTransition(async () => {
@@ -29,49 +42,56 @@ export function KeyManager({ keys }: { keys: KeyRow[] }) {
           });
         }}
       >
-        <input
+        <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Key name (e.g. laptop CLI)"
-          className="flex-1 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2.5 text-sm placeholder:text-zinc-500 focus:border-indigo-400/50 focus:outline-none"
+          aria-label="Key name"
         />
-        <button type="submit" disabled={pending} className="btn-primary disabled:opacity-50">
+        <Button type="submit" disabled={pending}>
           {pending ? "Creating…" : "Create key"}
-        </button>
+        </Button>
       </form>
 
       {newKey && (
-        <div className="rounded-xl border border-emerald-400/30 bg-emerald-400/10 p-4">
-          <p className="mb-2 text-xs font-medium text-emerald-300">
-            Copy this key now — it won&apos;t be shown again.
-          </p>
-          <div className="flex items-center justify-between gap-3">
-            <code className="break-all font-mono text-sm text-emerald-200">{newKey}</code>
-            <CopyButton value={newKey} />
-          </div>
-        </div>
+        <Alert>
+          <KeyRound />
+          <AlertTitle>Copy this key now — it won&apos;t be shown again.</AlertTitle>
+          <AlertDescription>
+            <div className="flex w-full items-center justify-between gap-3">
+              <code className="break-all font-mono">{newKey}</code>
+              <CopyButton value={newKey} />
+            </div>
+          </AlertDescription>
+        </Alert>
       )}
 
       {keys.length > 0 && (
-        <ul className="divide-y divide-white/5">
-          {keys.map((k) => (
-            <li key={k._id} className="flex items-center justify-between py-3">
-              <div>
-                <p className="text-sm font-medium">{k.name}</p>
-                <p className="font-mono text-xs text-zinc-500">
-                  {k.prefix}… · created {new Date(k.createdAt).toLocaleDateString()}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => startTransition(() => deleteApiKey(k._id))}
-                className="text-xs text-zinc-500 transition hover:text-red-400"
-              >
-                Revoke
-              </button>
-            </li>
+        <ItemGroup>
+          {keys.map((k, i) => (
+            <div key={k._id}>
+              {i > 0 && <ItemSeparator />}
+              <Item size="sm">
+                <ItemContent>
+                  <ItemTitle>{k.name}</ItemTitle>
+                  <ItemDescription className="font-mono">
+                    {k.prefix}… · created {new Date(k.createdAt).toLocaleDateString()}
+                  </ItemDescription>
+                </ItemContent>
+                <ItemActions>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => startTransition(() => deleteApiKey(k._id))}
+                  >
+                    Revoke
+                  </Button>
+                </ItemActions>
+              </Item>
+            </div>
           ))}
-        </ul>
+        </ItemGroup>
       )}
     </div>
   );

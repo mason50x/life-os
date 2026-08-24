@@ -2,11 +2,16 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { withAuth } from "@workos-inc/authkit-nextjs";
 import { Logo } from "@/components/Logo";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 
 const features = [
   {
     title: "Every account, one hub",
-    body: "Connect unlimited Gmail and Outlook accounts. LifeOS never stores your email — every request passes straight through to your provider.",
+    body: "Connect unlimited Gmail, Outlook, and iCloud accounts. LifeOS never stores your email — every request passes straight through to your provider.",
   },
   {
     title: "One MCP connection",
@@ -26,56 +31,60 @@ export default async function Home() {
   return (
     <main className="mx-auto flex min-h-dvh max-w-5xl flex-col px-6">
       <nav className="flex items-center justify-between py-8">
-        <span className="flex items-center gap-2 text-lg font-bold tracking-tight">
+        <span className="flex items-center gap-2 text-lg font-normal tracking-tight">
           <Logo size={26} />
-          Life<span className="text-indigo-400">OS</span>
+          LifeOS
         </span>
-        <Link href="/login" className="btn-ghost">
-          Sign in
-        </Link>
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <Button variant="outline" nativeButton={false} render={<Link href="/login">Sign in</Link>} />
+        </div>
       </nav>
 
       <section className="flex flex-1 flex-col items-center justify-center py-24 text-center">
-        <p className="mb-6 rounded-full border border-indigo-400/30 bg-indigo-400/10 px-4 py-1.5 text-xs font-medium text-indigo-300">
+        <Badge variant="outline" className="mb-6">
           Free while in beta
-        </p>
-        <h1 className="max-w-3xl text-balance text-5xl font-bold tracking-tight sm:text-7xl">
+        </Badge>
+        <h1 className="max-w-3xl text-balance text-5xl font-thin tracking-tight sm:text-7xl">
           Every inbox.
           <br />
-          <span className="bg-gradient-to-r from-indigo-400 via-violet-400 to-fuchsia-400 bg-clip-text text-transparent">
-            One connection.
-          </span>
+          One connection.
         </h1>
-        <p className="mt-6 max-w-xl text-pretty text-lg text-zinc-400">
+        <p className="mt-6 max-w-xl text-pretty text-lg text-muted-foreground">
           LifeOS turns all of your email accounts into a single MCP connection for Claude, ChatGPT,
           and every AI tool you use. Connect once, then just ask.
         </p>
-        <div className="mt-10 flex items-center gap-4">
-          <Link href="/login" className="btn-primary">
-            Connect your inboxes
-          </Link>
-          <a
-            href="https://modelcontextprotocol.io"
-            target="_blank"
-            rel="noreferrer"
-            className="btn-ghost"
-          >
-            What is MCP?
-          </a>
+        <div className="mt-10 flex items-center gap-3">
+          <Button size="lg" nativeButton={false} render={<Link href="/login">Connect your inboxes</Link>} />
+          <Button
+            size="lg"
+            variant="outline"
+            nativeButton={false}
+            render={
+              <a href="https://modelcontextprotocol.io" target="_blank" rel="noreferrer">
+                What is MCP?
+              </a>
+            }
+          />
         </div>
       </section>
 
       <section className="grid gap-6 pb-24 sm:grid-cols-3">
         {features.map((f) => (
-          <div key={f.title} className="card p-6">
-            <h3 className="font-semibold">{f.title}</h3>
-            <p className="mt-2 text-sm leading-relaxed text-zinc-400">{f.body}</p>
-          </div>
+          <Card key={f.title}>
+            <CardHeader>
+              <CardTitle>{f.title}</CardTitle>
+            </CardHeader>
+            <CardContent className="leading-relaxed text-muted-foreground">{f.body}</CardContent>
+          </Card>
         ))}
       </section>
 
-      <footer className="border-t border-white/5 py-8 text-center text-xs text-zinc-500">
-        LifeOS · your email, your rules · nothing stored, everything connected
+      <footer className="pb-8">
+        <Separator className="mb-8" />
+        <p className="text-center text-xs text-muted-foreground">
+          LifeOS · your email, your rules · nothing stored, everything connected
+        </p>
       </footer>
     </main>
   );

@@ -1,17 +1,50 @@
 import Link from "next/link";
 import { withAuth } from "@workos-inc/authkit-nextjs";
+import { AlertCircle, CheckCircle2, Inbox } from "lucide-react";
 import { listAccounts } from "@/lib/accounts";
 import { api, convex, convexAsUser, serviceKey } from "@/lib/convex";
-import { appUrl } from "@/lib/env";
+import { mcpUrl as mcpEndpoint } from "@/lib/env";
 import { CopyButton } from "@/components/CopyButton";
 import { KeyManager } from "@/components/KeyManager";
 import { Logo } from "@/components/Logo";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { Alert, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemMedia,
+  ItemSeparator,
+  ItemTitle,
+} from "@/components/ui/item";
 import { disconnectAccount } from "./actions";
 
-const providerMeta = {
-  gmail: { label: "Gmail", badge: "bg-red-400/15 text-red-300" },
-  outlook: { label: "Outlook", badge: "bg-sky-400/15 text-sky-300" },
-} as const;
+const providerLabel = { gmail: "Gmail", outlook: "Outlook", icloud: "iCloud" } as const;
+
+const clientGuides = [
+  { name: "Claude", body: "Settings → Connectors → Add custom connector" },
+  { name: "Claude Code", body: null },
+  { name: "ChatGPT", body: "Settings → Connectors → Advanced → Developer mode" },
+] as const;
 
 export default async function Dashboard({
   searchParams,
@@ -40,17 +73,18 @@ export default async function Dashboard({
       userId: user.id,
     }) as Promise<{ _id: string; name: string; prefix: string; createdAt: number }[]>,
   ]);
-  const mcpUrl = `${appUrl()}/mcp`;
+  const mcpUrl = mcpEndpoint();
 
   return (
     <main className="mx-auto max-w-4xl px-6 pb-24">
       <nav className="flex items-center justify-between py-8">
-        <Link href="/" className="flex items-center gap-2 text-lg font-bold tracking-tight">
+        <Link href="/" className="flex items-center gap-2 text-lg font-normal tracking-tight">
           <Logo size={26} />
-          Life<span className="text-indigo-400">OS</span>
+          LifeOS
         </Link>
-        <div className="flex items-center gap-4 text-sm text-zinc-400">
-          <span>{user.email}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">{user.email}</span>
+          <ThemeToggle />
           {/* POST via server action — a GET /logout link gets prefetched by
               Next.js and silently destroys the session on dashboard render. */}
           <form
@@ -60,115 +94,148 @@ export default async function Dashboard({
               await signOut({ returnTo: "/" });
             }}
           >
-            <button className="btn-ghost !px-3 !py-1.5 text-xs">Sign out</button>
+            <Button type="submit" variant="ghost" size="sm">
+              Sign out
+            </Button>
           </form>
         </div>
       </nav>
 
       {params.connected && (
-        <div className="mb-6 rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-300">
-          Connected {params.connected} 🎉
-        </div>
+        <Alert className="mb-6">
+          <CheckCircle2 />
+          <AlertTitle>Connected {params.connected}</AlertTitle>
+        </Alert>
       )}
       {params.error && (
-        <div className="mb-6 rounded-xl border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm text-red-300">
-          Connection failed: {params.error}
-        </div>
+        <Alert variant="destructive" className="mb-6">
+          <AlertCircle />
+          <AlertTitle>Connection failed: {params.error}</AlertTitle>
+        </Alert>
       )}
 
-      <section className="card p-6">
-        <div className="mb-5 flex items-center justify-between">
-          <div>
-            <h2 className="font-semibold">Connected accounts</h2>
-            <p className="text-sm text-zinc-400">
-              Connect as many inboxes as you like — they all flow through one MCP connection.
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <a href="/api/connect/google" className="btn-ghost !px-4 !py-2 text-xs">
-              + Gmail
-            </a>
-            <a href="/api/connect/microsoft" className="btn-ghost !px-4 !py-2 text-xs">
-              + Outlook
-            </a>
-          </div>
-        </div>
-
-        {accounts.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-white/10 py-10 text-center text-sm text-zinc-500">
-            No accounts yet. Connect your first inbox above.
-          </p>
-        ) : (
-          <ul className="divide-y divide-white/5">
-            {accounts.map((a) => (
-              <li key={a.id} className="flex items-center justify-between py-3">
-                <div className="flex items-center gap-3">
-                  <span
-                    className={`rounded-md px-2 py-1 text-[11px] font-semibold ${providerMeta[a.provider].badge}`}
-                  >
-                    {providerMeta[a.provider].label}
-                  </span>
-                  <div>
-                    <p className="text-sm font-medium">{a.email}</p>
-                    <p className="text-xs text-zinc-500">
-                      {a.status === "active" ? (
-                        <span className="text-emerald-400">● active</span>
-                      ) : (
-                        <span className="text-amber-400">● needs re-auth</span>
-                      )}
-                    </p>
-                  </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Connected accounts</CardTitle>
+          <CardDescription>
+            Connect as many inboxes as you like — they all flow through one MCP connection.
+          </CardDescription>
+          <CardAction className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              nativeButton={false}
+              render={<a href="/api/connect/google">+ Gmail</a>}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              nativeButton={false}
+              render={<a href="/api/connect/microsoft">+ Outlook</a>}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              nativeButton={false}
+              render={<Link href="/connect/icloud">+ iCloud</Link>}
+            />
+          </CardAction>
+        </CardHeader>
+        <CardContent>
+          {accounts.length === 0 ? (
+            <Empty className="border border-dashed">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <Inbox />
+                </EmptyMedia>
+                <EmptyTitle>No accounts yet</EmptyTitle>
+                <EmptyDescription>Connect your first inbox above.</EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          ) : (
+            <ItemGroup>
+              {accounts.map((a, i) => (
+                <div key={a.id}>
+                  {i > 0 && <ItemSeparator />}
+                  <Item size="sm" className="px-0">
+                    <ItemMedia>
+                      <Badge variant="outline">{providerLabel[a.provider]}</Badge>
+                    </ItemMedia>
+                    <ItemContent>
+                      <ItemTitle>{a.email}</ItemTitle>
+                      <ItemDescription>
+                        {a.status === "active" ? "Active" : "Needs re-auth"}
+                      </ItemDescription>
+                    </ItemContent>
+                    <ItemActions>
+                      {a.status !== "active" && <Badge variant="destructive">Re-auth</Badge>}
+                      <form
+                        action={async () => {
+                          "use server";
+                          await disconnectAccount(a.id);
+                        }}
+                      >
+                        <Button type="submit" variant="ghost" size="sm">
+                          Disconnect
+                        </Button>
+                      </form>
+                    </ItemActions>
+                  </Item>
                 </div>
-                <form
-                  action={async () => {
-                    "use server";
-                    await disconnectAccount(a.id);
-                  }}
-                >
-                  <button className="text-xs text-zinc-500 transition hover:text-red-400">
-                    Disconnect
-                  </button>
-                </form>
-              </li>
+              ))}
+            </ItemGroup>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>Your MCP connection</CardTitle>
+          <CardDescription>
+            Add this URL to any MCP client. You&apos;ll sign in with your LifeOS account the first
+            time — OAuth is handled automatically.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Item variant="muted">
+            <ItemContent>
+              <code className="break-all font-mono text-sm">{mcpUrl}</code>
+            </ItemContent>
+            <ItemActions>
+              <CopyButton value={mcpUrl} />
+            </ItemActions>
+          </Item>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {clientGuides.map((guide) => (
+              <Item key={guide.name} variant="outline" size="sm">
+                <ItemContent>
+                  <ItemTitle>{guide.name}</ItemTitle>
+                  <ItemDescription className="text-xs">
+                    {guide.body ?? (
+                      <code className="break-all font-mono">
+                        claude mcp add -t http lifeos {mcpUrl}
+                      </code>
+                    )}
+                  </ItemDescription>
+                </ItemContent>
+              </Item>
             ))}
-          </ul>
-        )}
-      </section>
+          </div>
+        </CardContent>
+      </Card>
 
-      <section className="card mt-6 p-6">
-        <h2 className="font-semibold">Your MCP connection</h2>
-        <p className="mt-1 text-sm text-zinc-400">
-          Add this URL to any MCP client. You&apos;ll sign in with your LifeOS account the first
-          time — OAuth is handled automatically.
-        </p>
-        <div className="mt-4 flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-black/30 px-4 py-3">
-          <code className="break-all font-mono text-sm text-indigo-300">{mcpUrl}</code>
-          <CopyButton value={mcpUrl} />
-        </div>
-        <div className="mt-4 grid gap-3 text-xs text-zinc-400 sm:grid-cols-3">
-          <div className="rounded-lg bg-white/[0.03] p-3">
-            <p className="mb-1 font-semibold text-zinc-300">Claude</p>
-            Settings → Connectors → Add custom connector
-          </div>
-          <div className="rounded-lg bg-white/[0.03] p-3">
-            <p className="mb-1 font-semibold text-zinc-300">Claude Code</p>
-            <code className="break-all">claude mcp add -t http lifeos {mcpUrl}</code>
-          </div>
-          <div className="rounded-lg bg-white/[0.03] p-3">
-            <p className="mb-1 font-semibold text-zinc-300">ChatGPT</p>
-            Settings → Connectors → Advanced → Developer mode
-          </div>
-        </div>
-      </section>
-
-      <section className="card mt-6 p-6">
-        <h2 className="font-semibold">API keys</h2>
-        <p className="mb-4 mt-1 text-sm text-zinc-400">
-          For the <code className="font-mono text-indigo-300">lifeos</code> CLI. Run{" "}
-          <code className="font-mono text-indigo-300">lifeos login</code> and paste a key.
-        </p>
-        <KeyManager keys={keys} />
-      </section>
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>API keys</CardTitle>
+          <CardDescription>
+            For the <code className="font-mono">lifeos</code> CLI. Run{" "}
+            <code className="font-mono">lifeos login</code> and paste a key.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <KeyManager keys={keys} />
+        </CardContent>
+      </Card>
     </main>
   );
 }
