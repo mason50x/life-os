@@ -1,11 +1,11 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { withAuth } from "@workos-inc/authkit-nextjs";
 import { Inbox, KeyRound, Link2, Send, ShieldCheck, Terminal } from "lucide-react";
+import { ConnectButton } from "@/components/ConnectButton";
+import { PendingButton } from "@/components/PendingButton";
 import { Logo } from "@/components/Logo";
 import { FlowDiagram } from "@/components/FlowDiagram";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { mcpUrl } from "@/lib/env";
 import { cn } from "@/lib/utils";
@@ -69,17 +69,25 @@ export default async function Home() {
   const endpoint = mcpUrl();
 
   return (
-    <div className="flex min-h-dvh flex-col">
+    <div id="top" className="flex min-h-dvh flex-col">
       <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur">
         <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between border-x px-6">
-          <span className="flex items-center gap-2 text-lg font-normal tracking-tight">
-            <Logo size={26} />
+          <a
+            href="#top"
+            aria-label="LifeOS — back to top"
+            className="group/logo -m-2 flex items-center gap-2 p-2 text-lg font-normal tracking-tight"
+          >
+            <Logo size={26} interactive />
             LifeOS
-          </span>
+          </a>
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            <Button variant="ghost" nativeButton={false} render={<Link href="/login">Sign in</Link>} />
-            <Button nativeButton={false} render={<Link href="/login">Get started</Link>} />
+            <PendingButton href="/login" variant="ghost" size="default">
+              Sign in
+            </PendingButton>
+            <PendingButton href="/login?signup" size="default">
+              Get started
+            </PendingButton>
           </div>
         </nav>
       </header>
@@ -89,29 +97,26 @@ export default async function Home() {
         <section className="relative border-b">
           <Cross className="-bottom-[8.5px] -left-[8.5px]" />
           <Cross className="-bottom-[8.5px] -right-[8.5px]" />
-          <div className="grid items-center gap-x-8 gap-y-16 px-6 py-20 sm:px-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:py-28">
+          <div className="grid items-center gap-x-8 gap-y-16 px-6 py-20 sm:px-10 lg:grid-cols-2 lg:py-28">
             <div>
-              <Badge variant="outline" className="mb-6">
-                Free while in beta
-              </Badge>
-              <h1 className="text-balance text-5xl font-thin tracking-tight sm:text-6xl xl:text-7xl">
-                Every inbox.
+              <h1 className="text-balance text-5xl font-normal tracking-tighter sm:text-6xl xl:text-7xl">
+                Every inbox,
                 <br />
-                One connection.
+                one connection.
               </h1>
               <p className="mt-6 max-w-xl text-pretty text-lg text-muted-foreground">
-                LifeOS turns all of your email accounts into a single MCP connection for Claude,
-                ChatGPT, and every AI tool you use. Connect once, then just ask.
+                LifeOS turns your many email accounts into one MCP. One connection, persistent
+                across all your services.
               </p>
               <div className="mt-10 flex flex-wrap items-center gap-3">
-                <Button size="lg" nativeButton={false} render={<Link href="/login">Connect your inboxes</Link>} />
+                <ConnectButton />
                 <Button
                   size="lg"
                   variant="outline"
                   nativeButton={false}
                   render={
                     <a href="https://modelcontextprotocol.io" target="_blank" rel="noreferrer">
-                      What is MCP?
+                      MCP?
                     </a>
                   }
                 />
@@ -173,37 +178,33 @@ export default async function Home() {
 
         {/* CTA */}
         <section className="flex flex-col items-center px-6 py-24 text-center">
-          <h2 className="text-balance text-4xl font-thin tracking-tight sm:text-5xl">
+          <h2 className="text-balance text-4xl font-normal tracking-tighter sm:text-5xl">
             Connect once. Then just ask.
           </h2>
           <p className="mt-4 max-w-md text-pretty text-muted-foreground">
-            Free while in beta. Your email stays with your provider — LifeOS is just the wire.
+            We&rsquo;re free for now, until we can&rsquo;t afford to cover the costs. Let&rsquo;s get
+            you setup now!
           </p>
-          <Button size="lg" className="mt-8" nativeButton={false} render={<Link href="/login">Get started</Link>} />
+          <div className="mt-8">
+            <PendingButton href="/login?signup">Get started</PendingButton>
+          </div>
         </section>
       </main>
 
       <footer className="border-t">
         <div className="mx-auto flex max-w-6xl flex-col justify-between gap-6 border-x px-6 py-10 sm:flex-row sm:items-center">
-          <span className="flex items-center gap-2 text-sm">
-            <Logo size={20} />
+          <span className="group/logo flex w-fit items-center gap-2 text-sm">
+            <Logo size={20} interactive />
             LifeOS
-            <span className="text-muted-foreground">— your email, your rules</span>
           </span>
-          <nav className="flex items-center gap-6 text-sm text-muted-foreground">
-            <Link href="/login" className="hover:text-foreground">
-              Sign in
-            </Link>
-            <a
-              href="https://modelcontextprotocol.io"
-              target="_blank"
-              rel="noreferrer"
-              className="hover:text-foreground"
-            >
-              MCP
-            </a>
-            <span>© {new Date().getFullYear()} LifeOS</span>
-          </nav>
+          <a
+            href="https://cognify.design"
+            target="_blank"
+            rel="noreferrer"
+            className="w-fit text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            © {new Date().getFullYear()} Cognify
+          </a>
         </div>
       </footer>
     </div>
@@ -214,7 +215,7 @@ function SectionHeading({ label, title }: { label: string; title: string }) {
   return (
     <div className="px-6 py-10 sm:px-10">
       <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">{label}</p>
-      <h2 className="mt-2 text-3xl font-thin tracking-tight sm:text-4xl">{title}</h2>
+      <h2 className="mt-2 text-3xl font-normal tracking-tighter sm:text-4xl">{title}</h2>
     </div>
   );
 }

@@ -36,6 +36,12 @@ export default defineSchema({
     accessTokenEnc: v.string(),
     refreshTokenEnc: v.optional(v.string()),
     accessTokenExpiresAt: v.number(),
+    // Which Google OAuth client minted these tokens. "connect" (the default,
+    // and absent on rows written before sign-in adoption existed) is the
+    // dedicated Gmail client; "authkit" is the separate sign-in client. Google
+    // only refreshes a token against its issuing client, so this picks the
+    // credentials to refresh with.
+    tokenClient: v.optional(v.union(v.literal("connect"), v.literal("authkit"))),
     connectedAt: v.number(),
   })
     .index("by_user", ["userId"])
