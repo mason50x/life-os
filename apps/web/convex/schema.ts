@@ -51,7 +51,7 @@ export default defineSchema({
   apiKeys: defineTable({
     userId: v.string(),
     name: v.string(),
-    prefix: v.string(), // first 12 chars for display
+    prefix: v.string(), // leading characters kept for display (see lib/apiKeys.ts)
     hash: v.string(),
     createdAt: v.number(),
     lastUsedAt: v.optional(v.number()),

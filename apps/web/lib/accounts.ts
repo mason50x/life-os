@@ -131,3 +131,31 @@ export async function getProviderForAccount(
 
   return await createProvider(doc.provider, doc.email, getAccessToken);
 }
+
+export async function removeAccount(userId: string, id: string): Promise<void> {
+  await convex().mutation(api.accounts.remove, { serviceKey: serviceKey(), id, userId });
+}
+
+export interface AccountCheck {
+  ok: boolean;
+  /** Round trip in ms, so a slow provider is visible and not just a pass. */
+  ms: number;
+  detail: string;
+}
+
+/**
+ * Prove an account still works end to end: refresh its token if due, then make
+ * the cheapest real API call the provider interface offers. This is what turns
+ * a stored `status: "active"` into something actually verified — a revoked
+ * grant looks fine in the database until someone calls the provider.
+ */
+export async function checkAccount(userId: string, email: string): Promise<AccountCheck> {
+  const started = Date.now();
+  try {
+    const provider = await getProviderForAccount(userId, email);
+    const labels = await provider.listLabels();
+    return { ok: true, ms: Date.now() - started, detail: `${labels.length} folders reachable` };
+  } catch (e) {
+    return { ok: false, ms: Date.now() - started, detail: e instanceof Error ? e.message : String(e) };
+  }
+}

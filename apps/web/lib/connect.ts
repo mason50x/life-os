@@ -14,6 +14,12 @@ import { encryptSecret } from "./crypto";
 import { appUrl, env } from "./env";
 
 const STATE_COOKIE = "lifeos_oauth_state";
+/**
+ * Set by /cli/connect. Its only job is to tell finishConnect that a terminal is
+ * waiting on the other side, so the callback lands on /cli/done rather than the
+ * dashboard. The dashboard's own connect flow never sets it.
+ */
+export const CLI_CONNECT_COOKIE = "lifeos_cli_connect";
 
 function redirectUri(provider: OAuthProvider): string {
   return `${appUrl()}/api/connect/${provider === "gmail" ? "google" : "microsoft"}/callback`;
@@ -39,16 +45,23 @@ export async function startConnect(provider: OAuthProvider): Promise<NextRespons
 export async function finishConnect(provider: OAuthProvider, req: Request): Promise<NextResponse> {
   const { user } = await withAuth({ ensureSignedIn: true });
   const url = new URL(req.url);
-  const dashboard = (params: string) => NextResponse.redirect(`${appUrl()}/dashboard?${params}`);
+  const jar = await cookies();
+  const fromCli = jar.get(CLI_CONNECT_COOKIE)?.value === "1";
+
+  const done = (params: string) => {
+    const res = NextResponse.redirect(`${appUrl()}/${fromCli ? "cli/done" : "dashboard"}?${params}`);
+    if (fromCli) res.cookies.delete(CLI_CONNECT_COOKIE);
+    return res;
+  };
 
   const error = url.searchParams.get("error");
-  if (error) return dashboard(`error=${encodeURIComponent(error)}`);
+  if (error) return done(`error=${encodeURIComponent(error)}`);
 
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
-  const cookieState = (await cookies()).get(STATE_COOKIE)?.value;
+  const cookieState = jar.get(STATE_COOKIE)?.value;
   if (!code || !state || state !== cookieState || !state.startsWith(`${user.id}.`)) {
-    return dashboard("error=invalid_oauth_state");
+    return done("error=invalid_oauth_state");
   }
 
   try {
@@ -75,12 +88,12 @@ export async function finishConnect(provider: OAuthProvider, req: Request): Prom
       tokenClient: "connect",
     });
 
-    const res = dashboard(`connected=${encodeURIComponent(profile.email)}`);
+    const res = done(`connected=${encodeURIComponent(profile.email)}`);
     res.cookies.delete(STATE_COOKIE);
     return res;
   } catch (e) {
     console.error(`OAuth connect failed (${provider}):`, e);
-    return dashboard("error=connect_failed");
+    return done("error=connect_failed");
   }
 }
 

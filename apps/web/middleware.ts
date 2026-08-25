@@ -9,7 +9,9 @@ const authkit = authkitMiddleware({
     // itself — sign-up needs `prompt=consent` to get a Google refresh token.
     // The handler redirects to AuthKit regardless, so nothing is left open.
     enabled: true,
-    unauthenticatedPaths: ["/", "/login"],
+    // /cli/done is a message page shown after the browser half of a CLI connect
+    // finishes; it must render even for someone who has since signed out.
+    unauthenticatedPaths: ["/", "/login", "/cli/done"],
   },
 });
 
@@ -22,6 +24,9 @@ const SESSION_PATHS = [
   /^\/callback$/,
   /^\/connect(\/|$)/,
   /^\/api\/connect(\/|$)/,
+  // The browser half of a CLI connect. Not /api/cli/*, which authenticates
+  // itself with a WorkOS access token or a LifeOS API key.
+  /^\/cli(\/|$)/,
 ];
 
 // The dedicated MCP subdomain serves ONLY the MCP protocol surface: the

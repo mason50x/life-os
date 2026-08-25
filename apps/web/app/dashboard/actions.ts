@@ -2,40 +2,25 @@
 
 import { revalidatePath } from "next/cache";
 import { withAuth } from "@workos-inc/authkit-nextjs";
-import { api, convex, serviceKey } from "@/lib/convex";
-import { generateApiKey, sha256Hex } from "@/lib/crypto";
+import { removeAccount } from "@/lib/accounts";
+import { mintApiKey, revokeApiKey } from "@/lib/apiKeys";
 
 export async function disconnectAccount(id: string): Promise<void> {
   const { user } = await withAuth({ ensureSignedIn: true });
-  await convex().mutation(api.accounts.remove, {
-    serviceKey: serviceKey(),
-    id,
-    userId: user.id,
-  });
+  await removeAccount(user.id, id);
   revalidatePath("/dashboard");
 }
 
 export async function createApiKey(name: string): Promise<{ key: string }> {
   const { user } = await withAuth({ ensureSignedIn: true });
-  const key = generateApiKey();
-  await convex().mutation(api.apiKeys.create, {
-    serviceKey: serviceKey(),
-    userId: user.id,
-    name: name.trim() || "CLI key",
-    prefix: key.slice(0, 14),
-    hash: sha256Hex(key),
-  });
+  const key = await mintApiKey(user.id, name);
   revalidatePath("/dashboard");
-  return { key };
+  return key;
 }
 
 export async function deleteApiKey(id: string): Promise<void> {
   const { user } = await withAuth({ ensureSignedIn: true });
-  await convex().mutation(api.apiKeys.remove, {
-    serviceKey: serviceKey(),
-    id,
-    userId: user.id,
-  });
+  await revokeApiKey(user.id, id);
   revalidatePath("/dashboard");
 }
 

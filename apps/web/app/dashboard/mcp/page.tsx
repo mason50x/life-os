@@ -1,5 +1,6 @@
 import { LinkIcon } from "@heroicons/react/24/solid";
 import { mcpUrl as mcpEndpoint } from "@/lib/env";
+import { MCP_TOOLS } from "@/lib/mcpTools";
 import { CopyButton } from "@/components/CopyButton";
 import { ProviderMark, providerLabel } from "@/components/dashboard/ProviderMark";
 import {
@@ -16,21 +17,6 @@ const clientGuides = [
   { name: "Claude", body: "Settings → Connectors → Add custom connector" },
   { name: "Claude Code", body: null },
   { name: "ChatGPT", body: "Settings → Connectors → Advanced → Developer mode" },
-] as const;
-
-/** The tools `/mcp` exposes, in the order a client tends to reach for them. */
-const tools = [
-  ["list_accounts", "Which inboxes are connected, and what each one is."],
-  ["search_emails", "Search one account or every account at once."],
-  ["get_thread", "A whole conversation, bodies included."],
-  ["get_message", "One message with its full body."],
-  ["send_email", "Send from any connected address."],
-  ["create_draft", "Leave a draft in the mailbox to review."],
-  ["archive_email", "Out of the inbox, still in the account."],
-  ["trash_email", "To trash — recoverable, never a hard delete."],
-  ["mark_read", "Read or unread."],
-  ["list_labels", "Gmail labels, Outlook and iCloud folders."],
-  ["modify_labels", "Relabel, or move between folders."],
 ] as const;
 
 export default async function McpConnection() {
@@ -98,7 +84,7 @@ export default async function McpConnection() {
           title="Tools on the wire"
         >
           <Panel className="grid sm:grid-cols-2">
-            {tools.map(([name, what], i) => (
+            {MCP_TOOLS.map(([name, what], i) => (
               <div key={name} className={cn("px-5 py-3", cellBorders(i, 2))}>
                 <code className="font-mono text-sm">{name}</code>
                 <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{what}</p>

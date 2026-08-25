@@ -1,4 +1,11 @@
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  createHmac,
+  randomBytes,
+  timingSafeEqual,
+} from "node:crypto";
 import { env } from "./env";
 
 // AES-256-GCM for OAuth tokens at rest. LIFEOS_ENCRYPTION_KEY is 32 bytes, base64.
@@ -31,4 +38,49 @@ export function sha256Hex(input: string): string {
 
 export function generateApiKey(): string {
   return `lifeos_${randomBytes(24).toString("hex")}`;
+}
+
+/**
+ * Short-lived signed handoff for the CLI's browser round trip. The CLI has no
+ * AuthKit cookie, so it can't start an OAuth connect itself; it opens a URL
+ * carrying one of these instead. Binding the WorkOS user id into the signature
+ * is what stops an inbox being connected to the wrong LifeOS account when the
+ * browser happens to be signed in as somebody else.
+ *
+ * Keyed off LIFEOS_ENCRYPTION_KEY rather than a new secret — it is already
+ * required, already 32 bytes, and already deployment-scoped.
+ */
+interface Handoff {
+  userId: string;
+  provider: string;
+  /** Unix ms. */
+  expiresAt: number;
+}
+
+const b64url = (b: Buffer) => b.toString("base64url");
+
+function handoffSignature(body: string): Buffer {
+  return createHmac("sha256", key()).update(body).digest();
+}
+
+export function signHandoff(payload: Handoff): string {
+  const body = b64url(Buffer.from(JSON.stringify({ ...payload, n: randomBytes(8).toString("hex") })));
+  return `${body}.${b64url(handoffSignature(body))}`;
+}
+
+export function verifyHandoff(token: string): Handoff | null {
+  const [body, signature] = token.split(".");
+  if (!body || !signature) return null;
+
+  const expected = handoffSignature(body);
+  const got = Buffer.from(signature, "base64url");
+  if (got.length !== expected.length || !timingSafeEqual(got, expected)) return null;
+
+  try {
+    const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as Handoff;
+    if (payload.expiresAt < Date.now()) return null;
+    return payload;
+  } catch {
+    return null;
+  }
 }

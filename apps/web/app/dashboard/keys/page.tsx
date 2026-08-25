@@ -13,8 +13,12 @@ import { keysOf, session } from "../data";
 
 const cliSteps = [
   { n: "01", cmd: "npm i -g @cognify-software/lifeos", body: "Installs the lifeos command." },
-  { n: "02", cmd: "lifeos login", body: "Paste a key when it asks. It's stored in your keychain." },
-  { n: "03", cmd: "lifeos accounts", body: "Lists every inbox the key can reach." },
+  {
+    n: "02",
+    cmd: "lifeos login",
+    body: "Opens your browser to confirm. No key to paste; the session goes in your keychain.",
+  },
+  { n: "03", cmd: "lifeos", body: "Everything on this dashboard, in your terminal." },
 ] as const;
 
 export default async function ApiKeys() {
@@ -34,7 +38,7 @@ export default async function ApiKeys() {
           </Panel>
         </Section>
 
-        <Section title="Using one">
+        <Section title="You probably don't need one">
           <Panel className="grid sm:grid-cols-3">
             {cliSteps.map((s, i) => (
               <div key={s.n} className={cn("px-5 py-4", cellBorders(i, 3))}>
@@ -49,8 +53,10 @@ export default async function ApiKeys() {
         </Section>
 
         <p className="text-xs leading-relaxed text-muted-foreground">
-          Keys are for the CLI. AI clients don&rsquo;t need one — they authenticate against{" "}
-          <code className="font-mono">{mcpEndpoint()}</code> with OAuth instead.
+          Keys exist for scripts and CI, where no one is around to click a browser prompt —
+          pass one with <code className="font-mono">lifeos login --token</code>. The CLI itself
+          signs in through your browser, and AI clients authenticate against{" "}
+          <code className="font-mono">{mcpEndpoint()}</code> with OAuth. Neither needs a key.
         </p>
       </PageBody>
     </>

@@ -45,6 +45,19 @@ export const findByHash = query({
   },
 });
 
+/**
+ * Record that a key was just used. Callers throttle this (see lib/apiAuth.ts) so
+ * an active key costs one write an hour rather than one per request.
+ */
+export const touch = mutation({
+  args: { serviceKey: v.string(), id: v.id("apiKeys") },
+  handler: async (ctx, args) => {
+    assertServiceKey(args.serviceKey);
+    const doc = await ctx.db.get(args.id);
+    if (doc) await ctx.db.patch(args.id, { lastUsedAt: Date.now() });
+  },
+});
+
 export const remove = mutation({
   args: { serviceKey: v.string(), id: v.id("apiKeys"), userId: v.string() },
   handler: async (ctx, args) => {
