@@ -11,6 +11,8 @@ habit and over anything implied elsewhere in this file.
 - Keep changes small and in the style of the file you're editing.
 - Ask before adding a dependency, renaming a public route, or changing an
   auth flow.
+- **Never create or use git worktrees, and never open a pull request**,
+  unless explicitly asked. Work on the current branch in this checkout.
 
 <!-- Add more preferences here as they come up. -->
 
