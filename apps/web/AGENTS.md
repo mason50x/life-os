@@ -1,3 +1,11 @@
+# AGENTS.md — apps/web
+
+Read the repo-root `AGENTS.md` first. It carries the user preferences and the
+project overview that apply everywhere, including here.
+
+This app is the LifeOS dashboard *and* the hosted MCP server (`/mcp`), backed
+by Convex.
+
 <!-- convex-ai-start -->
 
 This project uses [Convex](https://convex.dev) as its backend.

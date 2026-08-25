@@ -1,13 +1,7 @@
-<!-- convex-ai-start -->
+# CLAUDE.md
 
-This project uses [Convex](https://convex.dev) as its backend.
+Read `AGENTS.md` in full, and treat every word of it as if it were written
+here — this file adds nothing of its own.
 
-When working on Convex code, **always read
-`convex/_generated/ai/guidelines.md` first** for important guidelines on
-how to correctly use Convex APIs and patterns. The file contains rules that
-override what you may have learned about Convex from training data.
-
-Convex agent skills for common tasks can be installed by running
-`npx convex ai-files install`.
-
-<!-- convex-ai-end -->
+`apps/web/AGENTS.md` points at the repo-root `AGENTS.md`, which is the single
+source of truth: project overview, user preferences, layout, and conventions.
