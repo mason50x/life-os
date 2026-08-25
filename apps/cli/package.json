@@ -1,15 +1,32 @@
 {
-  "name": "@lifeos/cli",
+  "name": "@cognify-software/lifeos",
   "version": "0.1.0",
-  "private": true,
+  "description": "Command line for LifeOS — connect every inbox, then give any MCP client one connection to all of them.",
+  "keywords": ["lifeos", "mcp", "email", "gmail", "outlook", "icloud", "cli"],
+  "homepage": "https://github.com/mason50x/life-os#readme",
+  "bugs": "https://github.com/mason50x/life-os/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mason50x/life-os.git",
+    "directory": "apps/cli"
+  },
+  "license": "MIT",
   "type": "module",
   "bin": {
-    "lifeos": "./dist/index.js"
+    "lifeos": "dist/index.js"
+  },
+  "files": ["dist"],
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
     "commander": "^13.1.0"

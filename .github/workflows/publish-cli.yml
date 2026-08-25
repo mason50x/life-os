@@ -1,0 +1,114 @@
+# Publishes apps/cli to npm as @cognify-software/lifeos.
+#
+# Fires on any push to main that touched the CLI — the web app and the Convex
+# backend ship through Vercel and have no business cutting a CLI release.
+#
+# The version comes from the commit message, defaulting to a patch:
+#
+#   feat: …            → minor        major: …             → major
+#   anything else      → patch        BREAKING CHANGE in body → major
+#
+# Auth is npm trusted publishing (OIDC) — no NPM_TOKEN in this repo. That
+# needs a one-time setup on npmjs.com, and the package has to exist there
+# first; see RELEASING.md for the bootstrap.
+name: Publish CLI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/cli/**"
+      - ".github/workflows/publish-cli.yml"
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump"
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+
+# One release at a time. Two overlapping runs would race on the version
+# commit and the second would push a tag for a version npm already has.
+concurrency:
+  group: publish-cli
+  cancel-in-progress: false
+
+permissions:
+  contents: write # push the version bump + tag
+  id-token: write # OIDC token for trusted publishing + provenance
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    # The bump commit this job pushes would otherwise re-trigger the job.
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      # Trusted publishing needs npm 11.5.1+; Node 22 ships with npm 10.
+      - run: npm install -g npm@latest
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm --filter @cognify-software/lifeos typecheck
+      - run: pnpm --filter @cognify-software/lifeos build
+
+      - name: Work out the bump
+        id: bump
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "level=${{ inputs.bump }}" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          msg=$(git log -1 --pretty=%B)
+          case "$msg" in
+            major:*|*"BREAKING CHANGE"*) level=major ;;
+            feat:*|minor:*)              level=minor ;;
+            *)                           level=patch ;;
+          esac
+          echo "level=$level" >> "$GITHUB_OUTPUT"
+          echo "$level (from: $(printf '%s' "$msg" | head -1))" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Bump, commit, tag
+        id: version
+        working-directory: apps/cli
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # npm version writes package.json but can't tag from a subdirectory
+          # in a way the root repo likes, so commit and tag by hand. Read the
+          # new version back off disk rather than parsing the command's
+          # output — `--json` is not honoured alongside --no-git-tag-version
+          # and it prints a bare `v1.2.3` instead.
+          npm version "${{ steps.bump.outputs.level }}" --no-git-tag-version > /dev/null
+          v=$(node -p "require('./package.json').version")
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          cd "$GITHUB_WORKSPACE"
+          git add apps/cli/package.json
+          git commit -m "Release @cognify-software/lifeos v$v [skip ci]"
+          git tag "cli-v$v"
+
+      - name: Publish
+        working-directory: apps/cli
+        run: npm publish
+
+      - name: Push the release commit
+        run: git push --follow-tags origin HEAD:main
+
+      - name: Summary
+        run: |
+          echo "Published **@cognify-software/lifeos@${{ steps.version.outputs.version }}**" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          echo "npm i -g @cognify-software/lifeos" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"

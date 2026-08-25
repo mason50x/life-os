@@ -49,7 +49,8 @@ claude mcp add -t http lifeos http://localhost:3000/mcp
 ## CLI
 
 ```bash
-pnpm --filter @lifeos/cli build
+npm i -g @cognify-software/lifeos             # or, from this checkout:
+pnpm --filter @cognify-software/lifeos build
 node apps/cli/dist/index.js login    # or `pnpm link` it as `lifeos`
 lifeos accounts
 lifeos mcp
