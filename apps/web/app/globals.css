@@ -117,6 +117,28 @@
   --sidebar-ring: oklch(0.56 0 0);
 }
 
+/* Landing flow diagram: a 10-unit comet on a pathLength-100 path. One
+   animation cycle moves the dash exactly one full traversal, so inbound and
+   outbound pulses sharing a delay stay in phase through the hub. */
+@keyframes flow-dash {
+  to {
+    stroke-dashoffset: -100;
+  }
+}
+
+.flow-dash {
+  stroke-dasharray: 10 90;
+  stroke-dashoffset: 0;
+  animation: flow-dash 3s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flow-dash {
+    animation: none;
+    opacity: 0;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
