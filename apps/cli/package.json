@@ -1,7 +1,7 @@
 {
   "name": "@cognify-software/lifeos",
   "version": "0.2.1",
-  "description": "Command line for LifeOS — connect every inbox, then give any MCP client one connection to all of them.",
+  "description": "Command line for LifeOS \u2014 connect every inbox, then give any MCP client one connection to all of them.",
   "keywords": [
     "lifeos",
     "mcp",
@@ -39,16 +39,14 @@
     "test": "vitest run",
     "prepublishOnly": "pnpm run build"
   },
-  "dependencies": {
-    "commander": "^13.1.0",
-    "ink": "^6.8.0",
-    "ink-text-input": "^6.0.0",
-    "react": "^19.2.0"
-  },
   "devDependencies": {
     "@types/node": "^22.10.0",
     "@types/react": "^19.2.0",
+    "commander": "^13.1.0",
+    "ink": "^6.8.0",
     "ink-testing-library": "^4.0.0",
+    "ink-text-input": "^6.0.0",
+    "react": "^19.2.0",
     "tsup": "^8.5.1",
     "typescript": "^5.7.2",
     "vitest": "^4.1.11"
