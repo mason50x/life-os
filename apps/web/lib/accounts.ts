@@ -21,13 +21,29 @@ interface AccountDoc {
   accessTokenEnc: string;
   refreshTokenEnc?: string;
   accessTokenExpiresAt: number;
+  tokenClient?: "connect" | "authkit";
   connectedAt: number;
 }
 
-function providerCredentials(provider: OAuthProvider) {
-  return provider === "gmail"
-    ? { clientId: env("GOOGLE_CLIENT_ID"), clientSecret: env("GOOGLE_CLIENT_SECRET") }
-    : { clientId: env("MICROSOFT_CLIENT_ID"), clientSecret: env("MICROSOFT_CLIENT_SECRET") };
+/**
+ * Credentials for refreshing an account's tokens. Gmail has two OAuth clients:
+ * the dedicated connect client, and the separate AuthKit sign-in client behind
+ * WorkOS (accounts adopted at sign-in). A refresh token only works against the
+ * client that issued it, so the account says which pair to use.
+ */
+function providerCredentials(provider: OAuthProvider, tokenClient?: AccountDoc["tokenClient"]) {
+  if (provider !== "gmail") {
+    return { clientId: env("MICROSOFT_CLIENT_ID"), clientSecret: env("MICROSOFT_CLIENT_SECRET") };
+  }
+  // Falls through to the connect client when no sign-in client is configured,
+  // which is correct for deployments where one Google client serves both.
+  if (tokenClient === "authkit" && process.env.WORKOS_GOOGLE_CLIENT_SECRET) {
+    return {
+      clientId: env("WORKOS_GOOGLE_CLIENT_ID"),
+      clientSecret: env("WORKOS_GOOGLE_CLIENT_SECRET"),
+    };
+  }
+  return { clientId: env("GOOGLE_CLIENT_ID"), clientSecret: env("GOOGLE_CLIENT_SECRET") };
 }
 
 export async function listAccounts(userId: string): Promise<ConnectedAccount[]> {
@@ -84,7 +100,7 @@ export async function getProviderForAccount(
     if (!doc.refreshTokenEnc) {
       throw new Error(`Account ${doc.email} needs re-authentication (no refresh token).`);
     }
-    const creds = providerCredentials(oauthProvider);
+    const creds = providerCredentials(oauthProvider, doc.tokenClient);
     let tokens;
     try {
       tokens = await refreshAccessToken(oauthProvider, {

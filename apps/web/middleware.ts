@@ -5,8 +5,11 @@ import { mcpHost } from "@/lib/env";
 const authkit = authkitMiddleware({
   debug: true,
   middlewareAuth: {
+    // /login is public so its route handler runs and picks the AuthKit URL
+    // itself — sign-up needs `prompt=consent` to get a Google refresh token.
+    // The handler redirects to AuthKit regardless, so nothing is left open.
     enabled: true,
-    unauthenticatedPaths: ["/"],
+    unauthenticatedPaths: ["/", "/login"],
   },
 });
 

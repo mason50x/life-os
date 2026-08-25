@@ -35,6 +35,7 @@ export const upsert = mutation({
     accessTokenEnc: v.string(),
     refreshTokenEnc: v.optional(v.string()),
     accessTokenExpiresAt: v.number(),
+    tokenClient: v.optional(v.union(v.literal("connect"), v.literal("authkit"))),
   },
   handler: async (ctx, args) => {
     assertServiceKey(args.serviceKey);
