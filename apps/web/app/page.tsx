@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { withAuth } from "@workos-inc/authkit-nextjs";
 import {
@@ -182,14 +183,25 @@ export default async function Home() {
             </BrandMenu>
             LifeOS
           </span>
-          <a
-            href="https://cognify.design"
-            target="_blank"
-            rel="noreferrer"
-            className="w-fit text-sm text-muted-foreground transition-colors hover:text-foreground"
-          >
-            © {new Date().getFullYear()} Cognify
-          </a>
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
+            <Link href="/privacy" className="transition-colors hover:text-foreground">
+              Privacy
+            </Link>
+            <Link href="/terms" className="transition-colors hover:text-foreground">
+              Terms
+            </Link>
+            <a href="/support" className="transition-colors hover:text-foreground">
+              Support
+            </a>
+            <a
+              href="https://cognify.design"
+              target="_blank"
+              rel="noreferrer"
+              className="transition-colors hover:text-foreground"
+            >
+              © {new Date().getFullYear()} Cognify
+            </a>
+          </div>
         </div>
       </footer>
     </ReaderShell>
