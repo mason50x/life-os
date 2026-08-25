@@ -1,7 +1,7 @@
 {
   "name": "@cognify-software/lifeos",
-  "version": "0.2.1",
-  "description": "Command line for LifeOS \u2014 connect every inbox, then give any MCP client one connection to all of them.",
+  "version": "0.2.2",
+  "description": "Command line for LifeOS — connect every inbox, then give any MCP client one connection to all of them.",
   "keywords": [
     "lifeos",
     "mcp",
