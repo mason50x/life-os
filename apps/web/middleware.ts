@@ -1,19 +1,24 @@
 import { NextFetchEvent, NextRequest, NextResponse } from "next/server";
 import { authkitMiddleware } from "@workos-inc/authkit-nextjs";
-import { mcpHost } from "@/lib/env";
+import { mcpHost, workosRedirectUri } from "@/lib/env";
 
-const authkit = authkitMiddleware({
-  debug: true,
-  middlewareAuth: {
-    // /login is public so its route handler runs and picks the AuthKit URL
-    // itself — sign-up needs `prompt=consent` to get a Google refresh token.
-    // The handler redirects to AuthKit regardless, so nothing is left open.
-    enabled: true,
-    // /cli/done is a message page shown after the browser half of a CLI connect
-    // finishes; it must render even for someone who has since signed out.
-    unauthenticatedPaths: ["/", "/login", "/cli/done"],
-  },
-});
+function runAuthkit(req: NextRequest, event: NextFetchEvent) {
+  // Built per request so redirectUri can fall back to the request host when
+  // NEXT_PUBLIC_WORKOS_REDIRECT_URI is missing (AuthKit throws otherwise).
+  return authkitMiddleware({
+    debug: true,
+    redirectUri: workosRedirectUri(req),
+    middlewareAuth: {
+      // /login is public so its route handler runs and picks the AuthKit URL
+      // itself — sign-up needs `prompt=consent` to get a Google refresh token.
+      // The handler redirects to AuthKit regardless, so nothing is left open.
+      enabled: true,
+      // /cli/done is a message page shown after the browser half of a CLI connect
+      // finishes; it must render even for someone who has since signed out.
+      unauthenticatedPaths: ["/", "/login", "/cli/done"],
+    },
+  })(req, event);
+}
 
 // Browser-session routes: the only places AuthKit runs (the MCP endpoint and
 // /api/cli/* authenticate themselves via AuthKit JWT / LifeOS API key).
@@ -46,7 +51,7 @@ export default function middleware(req: NextRequest, event: NextFetchEvent) {
     return new NextResponse("Not Found", { status: 404 });
   }
 
-  if (SESSION_PATHS.some((re) => re.test(pathname))) return authkit(req, event);
+  if (SESSION_PATHS.some((re) => re.test(pathname))) return runAuthkit(req, event);
   return NextResponse.next();
 }
 
