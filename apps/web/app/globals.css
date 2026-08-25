@@ -139,6 +139,34 @@
   }
 }
 
+/* The hub tile's mail slot throws like a lightswitch every few seconds — the
+   same drop the header/footer logo does on hover, scaled to the 84-unit tile
+   (60 × 84/184 ≈ 27.3) so the inset off each edge stays identical. */
+@keyframes hub-slot-throw {
+  0%,
+  6% {
+    transform: translateY(0);
+  }
+  10%,
+  40% {
+    transform: translateY(27.3px);
+  }
+  44%,
+  100% {
+    transform: translateY(0);
+  }
+}
+
+.hub-slot {
+  animation: hub-slot-throw 7s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hub-slot {
+    animation: none;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -148,5 +176,22 @@
   }
   html {
     @apply font-sans;
+    /* No rubber-band overscroll — the sticky header tearing away from the top
+       edge on a bounce reads as jank. */
+    overscroll-behavior-y: none;
+    /* Anchor links (the logo's jump back to #top) glide instead of snapping. */
+    scroll-behavior: smooth;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+  }
+  /* Scrolling stays, the bar goes — Firefox/modern spec first, WebKit after. */
+  html {
+    scrollbar-width: none;
+  }
+  *::-webkit-scrollbar {
+    display: none;
   }
 }
