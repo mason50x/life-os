@@ -9,7 +9,7 @@ LifeOS is a pass-through: it never stores email content. Convex holds only accou
 | Path | What it is |
 |---|---|
 | `apps/web` | Next.js 15 dashboard + hosted MCP server (`/mcp`) + Convex backend |
-| `apps/cli` | `lifeos` CLI — login, accounts, status, MCP setup info |
+| `apps/cli` | `lifeos` — the terminal app: everything the dashboard does, without a browser |
 | `packages/core` | Provider-agnostic email layer (Gmail + Microsoft Graph clients, OAuth helpers) |
 | `packages/mcp` | MCP tool definitions (search, read, send, draft, archive, labels…) |
 
@@ -19,7 +19,7 @@ LifeOS is a pass-through: it never stores email content. Convex holds only accou
 - **MCP auth** — AuthKit doubles as the OAuth 2.1 authorization server for MCP clients (dynamic client registration included). The MCP route verifies AuthKit JWTs via JWKS; `/.well-known/oauth-protected-resource` (RFC 9728) points clients at it.
 - **Email providers** — per-user OAuth to Google/Microsoft; refresh tokens AES-256-GCM encrypted before storage in Convex.
 - **MCP endpoint** — `https://<host>/mcp` (rewritten to `/api/mcp`, served by `mcp-handler`).
-- **CLI auth** — API keys minted in the dashboard (sha256-hashed at rest).
+- **CLI auth** — WorkOS device authorization flow: `lifeos login` opens the browser straight to a pre-filled confirm page, then stores the session in the OS keychain. `/api/cli/v1/*` accepts either that access token or an API key (sha256-hashed at rest), so scripts and CI still work with `lifeos login --token`.
 
 ## Setup
 
@@ -49,11 +49,36 @@ claude mcp add -t http lifeos http://localhost:3000/mcp
 ## CLI
 
 ```bash
-npm i -g @cognify-software/lifeos             # or, from this checkout:
+npm i -g @cognify-software/lifeos
+lifeos login          # opens your browser; nothing to paste
+lifeos                # the full-screen app
+```
+
+Bare `lifeos` takes over the terminal: a rail down the left, and every screen the
+dashboard has — inboxes (add, reconnect, disconnect), the MCP endpoint, API keys,
+and a `doctor` that actually calls each provider instead of trusting the stored
+status. `tab` moves between the rail and the pane, `?` lists the keys.
+
+Everything also works non-interactively, for scripts and CI:
+
+```bash
+lifeos accounts list --json
+lifeos accounts add gmail                     # opens the browser to authorize
+lifeos accounts add icloud --email you@icloud.com --password xxxx-xxxx-xxxx-xxxx
+lifeos mcp install --client claude-code
+lifeos keys create ci
+lifeos doctor                                 # exits non-zero if anything is broken
+lifeos login --token lifeos_...               # CI: no browser needed
+```
+
+Updates come from npm. The app checks once a day and offers the upgrade in the
+footer; `u` installs it, or run `lifeos update`.
+
+From this checkout instead of npm:
+
+```bash
 pnpm --filter @cognify-software/lifeos build
-node apps/cli/dist/index.js login    # or `pnpm link` it as `lifeos`
-lifeos accounts
-lifeos mcp
+node apps/cli/dist/cli.js login --api-url http://localhost:3000
 ```
 
 ## Deploy

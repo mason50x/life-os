@@ -45,7 +45,8 @@ Three pieces, plus a CLI:
 - **Email layer** — shared code that speaks Gmail and Microsoft Graph behind
   one provider-agnostic interface, so the rest of the app doesn't care which
   provider an account belongs to.
-- **CLI** — `lifeos`, for logging in and checking accounts from a terminal.
+- **CLI** — `lifeos`, a full-screen terminal app built on Ink. It does
+  everything the dashboard does, against `/api/cli/v1/*` on the same web app.
 
 Sign-in is handled by WorkOS AuthKit, which does double duty: it logs people
 into the dashboard *and* acts as the OAuth server that AI clients authenticate
@@ -59,7 +60,7 @@ against before they can use `/mcp`. Convex is the backend and database.
 | `apps/web/app` | Next.js routes — pages, API routes, `/mcp`, OAuth callbacks |
 | `apps/web/convex` | Backend functions and schema |
 | `apps/web/components` | UI components (shadcn-style, Tailwind v4) |
-| `apps/cli` | The `lifeos` command-line tool |
+| `apps/cli` | The `lifeos` terminal app — Ink UI in `src/screens`, everything else in `src/lib` |
 | `packages/core` | Gmail + Microsoft Graph clients, OAuth helpers, encryption |
 | `packages/mcp` | The MCP tool definitions (search, read, send, draft, …) |
 | `brand` | Logo, palette, icons, and the rules for using them |
@@ -70,6 +71,7 @@ against before they can use `/mcp`. Convex is the backend and database.
 pnpm install
 pnpm dev          # dashboard on :3000 (starts Convex alongside it)
 pnpm typecheck    # run before you call anything done
+pnpm test         # CLI unit + Ink render tests
 pnpm lint
 pnpm build
 ```
@@ -87,7 +89,14 @@ A few things worth knowing before you change code:
   interface in `packages/core/src/providers` — don't special-case providers in
   app code.
 - **Design** follows `brand/README.md`. Monochrome mark, indigo `#6366f1` for
-  UI accents only.
+  UI accents only. The CLI honours the same rule — indigo marks the one thing
+  that's selected, nothing else.
+- **The CLI and the dashboard are the same product.** Anything a user can do in
+  `/dashboard` must be doable in `lifeos`, and neither surface owns its logic:
+  the shared work lives in `apps/web/lib` (`accounts.ts`, `apiKeys.ts`,
+  `icloudConnect.ts`, `connect.ts`) and both a server action and an
+  `/api/cli/v1/*` route call it. Adding a dashboard feature means adding the
+  route and the screen too.
 
 ## Convex
 
