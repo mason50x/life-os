@@ -89,16 +89,34 @@ A few things worth knowing before you change code:
 
 ## Convex
 
+The backend is Convex — schema, queries, mutations, and actions all live in
+`apps/web/convex`. `npx convex dev` has to be running alongside `next dev` for
+the app to work; `pnpm dev` in `apps/web` starts both.
+
 <!-- convex-ai-start -->
 
 This project uses [Convex](https://convex.dev) as its backend.
 
 When working on Convex code, **always read
-`apps/web/convex/_generated/ai/guidelines.md` first** for important guidelines
-on how to correctly use Convex APIs and patterns. The file contains rules that
+`convex/_generated/ai/guidelines.md` first** for important guidelines on
+how to correctly use Convex APIs and patterns. The file contains rules that
 override what you may have learned about Convex from training data.
 
 Convex agent skills for common tasks can be installed by running
 `npx convex ai-files install`.
 
 <!-- convex-ai-end -->
+
+From the repo root that guidelines file is
+`apps/web/convex/_generated/ai/guidelines.md`. Read it **before** writing any
+Convex code, not after — it covers function registration and calling,
+function references, HTTP endpoints, validators, schema and index rules,
+authentication, TypeScript types, queries/mutations/actions, pagination,
+full-text and vector search, components, cron scheduling, testing, and file
+storage. Where it disagrees with what you remember about Convex, it wins.
+
+The Convex agent skills are already installed in `apps/web/.claude/skills`
+(mirrored in `apps/web/.agents/skills`) — 30-plus of them, including
+`convex-design` for schema work, `convex-auth` / `convex-authz` for access
+control, `convex-migrate` for schema changes, `convex-test`, `convex-reviewer`,
+and `convex-deploy-guard`. Reach for the matching skill instead of improvising.
