@@ -1,13 +1,21 @@
 import { redirect } from "next/navigation";
 import { withAuth } from "@workos-inc/authkit-nextjs";
-import { Inbox, KeyRound, Link2, Send, ShieldCheck, Terminal } from "lucide-react";
+import {
+  CommandLineIcon,
+  InboxStackIcon,
+  KeyIcon,
+  LinkIcon,
+  PaperAirplaneIcon,
+  ShieldCheckIcon,
+} from "@heroicons/react/24/outline";
 import { ConnectButton } from "@/components/ConnectButton";
+import { Cross } from "@/components/Cross";
 import { PendingButton } from "@/components/PendingButton";
+import { BrandMenu } from "@/components/BrandMenu";
 import { Logo } from "@/components/Logo";
 import { FlowDiagram } from "@/components/FlowDiagram";
+import { McpReaderTrigger, ReaderShell } from "@/components/McpReader";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Button } from "@/components/ui/button";
-import { mcpUrl } from "@/lib/env";
 import { cn } from "@/lib/utils";
 
 const steps = [
@@ -30,32 +38,32 @@ const steps = [
 
 const features = [
   {
-    icon: ShieldCheck,
+    icon: ShieldCheckIcon,
     title: "Nothing stored",
     body: "LifeOS never stores your email. Every request passes straight through to Gmail, Outlook, or iCloud and comes straight back.",
   },
   {
-    icon: Inbox,
+    icon: InboxStackIcon,
     title: "Unlimited accounts",
     body: "Connect as many inboxes as you like. They all meet behind one endpoint, searchable together or one at a time.",
   },
   {
-    icon: Link2,
+    icon: LinkIcon,
     title: "One URL, every client",
     body: "A single MCP endpoint works everywhere MCP does — Claude, ChatGPT, Claude Code, Cursor, and whatever ships next.",
   },
   {
-    icon: KeyRound,
+    icon: KeyIcon,
     title: "Auth done properly",
     body: "OAuth end to end with WorkOS AuthKit for Google and Microsoft; iCloud app-specific passwords stay encrypted. Credentials never reach your AI tools.",
   },
   {
-    icon: Send,
+    icon: PaperAirplaneIcon,
     title: "The full toolkit",
     body: "Search threads, read messages, manage labels, archive, draft, and send — the whole inbox surface, exposed as MCP tools.",
   },
   {
-    icon: Terminal,
+    icon: CommandLineIcon,
     title: "Dashboard and CLI",
     body: "A clean dashboard for humans and a lifeos CLI for terminals. Same accounts, same connection.",
   },
@@ -66,18 +74,18 @@ export default async function Home() {
   const { user } = await withAuth();
   if (user) redirect("/dashboard");
 
-  const endpoint = mcpUrl();
-
   return (
-    <div id="top" className="flex min-h-dvh flex-col">
+    <ReaderShell>
       <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur">
-        <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between border-x px-6">
+        <nav className="page-col flex h-16 items-center justify-between border-x px-6">
           <a
             href="#top"
             aria-label="LifeOS — back to top"
             className="group/logo -m-2 flex items-center gap-2 p-2 text-lg font-normal tracking-tight"
           >
-            <Logo size={26} interactive />
+            <BrandMenu>
+              <Logo size={26} interactive />
+            </BrandMenu>
             LifeOS
           </a>
           <div className="flex items-center gap-2">
@@ -92,7 +100,7 @@ export default async function Home() {
         </nav>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl flex-1 border-x">
+      <main className="page-col flex-1 border-x">
         {/* Hero — copy left, flow diagram right */}
         <section className="relative border-b">
           <Cross className="-bottom-[8.5px] -left-[8.5px]" />
@@ -110,16 +118,7 @@ export default async function Home() {
               </p>
               <div className="mt-10 flex flex-wrap items-center gap-3">
                 <ConnectButton />
-                <Button
-                  size="lg"
-                  variant="outline"
-                  nativeButton={false}
-                  render={
-                    <a href="https://modelcontextprotocol.io" target="_blank" rel="noreferrer">
-                      MCP?
-                    </a>
-                  }
-                />
+                <McpReaderTrigger />
               </div>
             </div>
             <div className="flex justify-center lg:justify-end">
@@ -132,7 +131,7 @@ export default async function Home() {
         <section className="relative border-b">
           <Cross className="-bottom-[8.5px] -left-[8.5px]" />
           <Cross className="-bottom-[8.5px] -right-[8.5px]" />
-          <SectionHeading label="How it works" title="Three steps, then it disappears" />
+          <SectionHeading title="Three steps, then it disappears" />
           <div className="grid border-t sm:grid-cols-3">
             {steps.map((s, i) => (
               <div key={s.n} className={cn("px-6 py-10 sm:px-10", i > 0 && "border-t sm:border-l sm:border-t-0")}>
@@ -142,29 +141,13 @@ export default async function Home() {
               </div>
             ))}
           </div>
-          <div className="border-t px-6 py-10 sm:px-10">
-            <div className="border bg-black font-mono text-sm text-white">
-              <div className="flex items-center gap-1.5 border-b border-white/15 px-4 py-3">
-                <span className="size-2.5 rounded-full bg-white/25" />
-                <span className="size-2.5 rounded-full bg-white/25" />
-                <span className="size-2.5 rounded-full bg-white/25" />
-              </div>
-              <div className="overflow-x-auto px-4 py-4">
-                <p className="whitespace-nowrap">
-                  <span className="select-none text-white/40">$ </span>
-                  claude mcp add -t http lifeos {endpoint}
-                </p>
-                <p className="mt-2 whitespace-nowrap text-white/40"># or paste the URL into any MCP client</p>
-              </div>
-            </div>
-          </div>
         </section>
 
         {/* Features */}
         <section className="relative border-b">
           <Cross className="-bottom-[8.5px] -left-[8.5px]" />
           <Cross className="-bottom-[8.5px] -right-[8.5px]" />
-          <SectionHeading label="What you get" title="Built like infrastructure, not another inbox" />
+          <SectionHeading title="Built like infrastructure, not another inbox" />
           <div className="grid gap-px border-t bg-border sm:grid-cols-2 lg:grid-cols-3">
             {features.map((f) => (
               <div key={f.title} className="bg-background px-6 py-10 sm:px-10">
@@ -192,9 +175,11 @@ export default async function Home() {
       </main>
 
       <footer className="border-t">
-        <div className="mx-auto flex max-w-6xl flex-col justify-between gap-6 border-x px-6 py-10 sm:flex-row sm:items-center">
+        <div className="page-col flex flex-col justify-between gap-6 border-x px-6 py-10 sm:flex-row sm:items-center">
           <span className="group/logo flex w-fit items-center gap-2 text-sm">
-            <Logo size={20} interactive />
+            <BrandMenu>
+              <Logo size={20} interactive />
+            </BrandMenu>
             LifeOS
           </span>
           <a
@@ -207,28 +192,14 @@ export default async function Home() {
           </a>
         </div>
       </footer>
-    </div>
+    </ReaderShell>
   );
 }
 
-function SectionHeading({ label, title }: { label: string; title: string }) {
+function SectionHeading({ title }: { title: string }) {
   return (
     <div className="px-6 py-10 sm:px-10">
-      <p className="font-mono text-xs uppercase tracking-widest text-muted-foreground">{label}</p>
-      <h2 className="mt-2 text-3xl font-normal tracking-tighter sm:text-4xl">{title}</h2>
+      <h2 className="text-3xl font-normal tracking-tighter sm:text-4xl">{title}</h2>
     </div>
-  );
-}
-
-/** Vercel-style crosshair marking a grid intersection. */
-function Cross({ className }: { className?: string }) {
-  return (
-    <svg
-      aria-hidden
-      viewBox="0 0 16 16"
-      className={cn("pointer-events-none absolute z-10 size-4 text-muted-foreground/60", className)}
-    >
-      <path d="M8 2v12M2 8h12" stroke="currentColor" strokeWidth="1" />
-    </svg>
   );
 }

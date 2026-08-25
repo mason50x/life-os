@@ -29,7 +29,9 @@ const sources = [
 const agents = [
   { label: "Claude", cx: 492, cy: 88, tile: "#D97757", glyph: <ClaudeMark fill="#FFFFFF" /> },
   { label: "ChatGPT", cx: 492, cy: 240, glyph: <ChatGPTMark /> },
-  { label: "Claude Code", cx: 492, cy: 392, tile: "#1F1E1D", glyph: <ClaudeCodeMark /> },
+  // The prompt glyph is two thin strokes where the others are solid marks, so
+  // it needs more of the tile to carry the same weight.
+  { label: "Claude Code", cx: 492, cy: 392, tile: "#1F1E1D", glyph: <ClaudeCodeMark />, glyphSize: 38 },
 ];
 
 const inbound = [
@@ -144,12 +146,15 @@ function Node({
   cy,
   glyph,
   tile,
+  glyphSize = 28,
 }: {
   label: string;
   cx: number;
   cy: number;
   glyph: React.ReactNode;
   tile?: string;
+  /** Rendered size of the 24-unit glyph inside the 56-unit tile. */
+  glyphSize?: number;
 }) {
   return (
     <g>
@@ -161,7 +166,9 @@ function Node({
         fill={tile ?? "var(--card)"}
         stroke="var(--border)"
       />
-      <g transform={`translate(${cx - 14} ${cy - 14}) scale(${28 / 24})`}>{glyph}</g>
+      <g transform={`translate(${cx - glyphSize / 2} ${cy - glyphSize / 2}) scale(${glyphSize / 24})`}>
+        {glyph}
+      </g>
       <text x={cx} y={cy + TILE / 2 + 18} textAnchor="middle" fontSize="11" className="fill-muted-foreground">
         {label}
       </text>

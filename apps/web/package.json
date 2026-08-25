@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
+    "@heroicons/react": "^2.2.0",
     "@lifeos/core": "workspace:*",
     "@lifeos/mcp": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.12.0",

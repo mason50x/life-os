@@ -30,6 +30,10 @@ surface.
 - `ascii/logo.ansi` — truecolor half-block terminal banner (the CLI embeds a
   copy in `apps/cli/src/banner.ts`); `ascii/logo.txt` — plain-ASCII fallback.
 
+Right-clicking the mark anywhere in the web app opens a menu that copies or
+downloads those two files — `/brandmark.svg` (a copy of `svg/logo.svg`) and
+`/logo.png`. Both are written into `apps/web/public` by `generate.py`.
+
 ## Usage rules
 
 - Minimum clear space: a quarter of the square on all sides.

@@ -81,6 +81,13 @@
   --sidebar-accent-foreground: oklch(0 0 0);
   --sidebar-border: oklch(0.9 0 0);
   --sidebar-ring: oklch(0.6 0 0);
+  /* Half the empty space beside the 72rem page column. The MCP reader takes
+     both halves: the page slides left by one gutter and the panel fills two,
+     so the column keeps its width and nothing inside it reflows or gets
+     covered. Where the gutters don't add up to 20rem of reading width the
+     page holds still and the panel overlays it instead. */
+  --page-gutter: max(0px, calc((100vw - 72rem) / 2));
+  --reader-w: min(100vw, max(20rem, calc(var(--page-gutter) * 2)));
 }
 
 .dark {
@@ -115,6 +122,52 @@
   --sidebar-accent-foreground: oklch(1 0 0);
   --sidebar-border: oklch(1 0 0 / 14%);
   --sidebar-ring: oklch(0.56 0 0);
+}
+
+/* The page slides by exactly one gutter — a transform, so nothing inside the
+   column reflows. Two-column mode needs both gutters to add up to the panel's
+   20rem minimum (72rem + 20rem of viewport); narrower than that the panel is
+   an overlay and the page stays put.
+
+   The panel covers two gutters while the page covers one, so they share a
+   single duration and curve: its leading edge closes on the column's trailing
+   edge at a steady rate and lands on it exactly. Different easing on the two
+   and the panel arrives early, over content still on its way out. */
+.reader-shell,
+.reader-panel {
+  transition:
+    translate 200ms cubic-bezier(0.32, 0.72, 0, 1),
+    visibility 200ms;
+}
+
+@media (width >= 92rem) {
+  [data-reader="open"].reader-shell {
+    translate: calc(var(--page-gutter) * -1);
+  }
+
+  /* The reader's left border then lands exactly on the column's right one.
+     Two hairlines a pixel apart read as a smudge, so the column yields — but
+     only once the panel is there to take over, hence the delay. Closing reads
+     the base rule instead and the hairline returns immediately. */
+  [data-reader="open"] .page-col {
+    border-right-color: transparent;
+    transition: border-color 0s linear 200ms;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reader-shell,
+  .reader-panel {
+    transition: none;
+  }
+}
+
+/* The landing shell's centered 72rem column. */
+.page-col {
+  width: 100%;
+  max-width: 72rem;
+  margin-inline: auto;
+  transition: border-color 0s;
 }
 
 /* Landing flow diagram: a 10-unit comet on a pathLength-100 path. One

@@ -27,7 +27,7 @@ function AccountAvatars() {
 
 export function ConnectButton() {
   return (
-    <PendingButton href="/login?signup" leading={<AccountAvatars />} leadingWidth="mr-1 w-15">
+    <PendingButton href="/login?signup" leading={<AccountAvatars />} leadingWidth="mr-2.5 w-15">
       Connect my Accounts
     </PendingButton>
   );

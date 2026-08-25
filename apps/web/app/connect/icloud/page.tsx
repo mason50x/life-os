@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { withAuth } from "@workos-inc/authkit-nextjs";
 import { ExternalLink } from "lucide-react";
+import { BrandMenu } from "@/components/BrandMenu";
 import { Logo } from "@/components/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Badge } from "@/components/ui/badge";
@@ -59,7 +60,9 @@ export default async function ConnectICloud() {
     <main className="mx-auto max-w-4xl px-6 pb-24">
       <nav className="flex items-center justify-between py-8">
         <Link href="/dashboard" className="flex items-center gap-2 text-lg font-normal tracking-tight">
-          <Logo size={26} />
+          <BrandMenu>
+            <Logo size={26} />
+          </BrandMenu>
           LifeOS
         </Link>
         <div className="flex items-center gap-2">

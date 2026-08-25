@@ -336,6 +336,8 @@ def main() -> None:
     save_chatgpt_png(composer, plugin / "composer-icon.png")
     WEB_PUBLIC.mkdir(parents=True, exist_ok=True)
     save_chatgpt_png(plugin_logo, WEB_PUBLIC / "logo.png")
+    # Served for the logo's right-click menu alongside the ChatGPT PNG above.
+    write_svg_logo(WEB_PUBLIC / "brandmark.svg", "#09090b")
 
     # White square, open slot — readable on dark terminals.
     art_src = draw_mark(256, fill=WHITE, background=TRANSPARENT, padded=False)

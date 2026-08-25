@@ -38,3 +38,13 @@ export async function deleteApiKey(id: string): Promise<void> {
   });
   revalidatePath("/dashboard");
 }
+
+/**
+ * Sign-out as an action rather than a `/logout` link: Next.js prefetches
+ * links, and a prefetched GET would destroy the session while the dashboard
+ * was still rendering.
+ */
+export async function signOutAction(): Promise<void> {
+  const { signOut } = await import("@workos-inc/authkit-nextjs");
+  await signOut({ returnTo: "/" });
+}

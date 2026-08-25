@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { KeyRound } from "lucide-react";
+import { KeyIcon } from "@heroicons/react/24/outline";
 import { createApiKey, deleteApiKey } from "@/app/dashboard/actions";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -55,7 +55,7 @@ export function KeyManager({ keys }: { keys: KeyRow[] }) {
 
       {newKey && (
         <Alert>
-          <KeyRound />
+          <KeyIcon />
           <AlertTitle>Copy this key now — it won&apos;t be shown again.</AlertTitle>
           <AlertDescription>
             <div className="flex w-full items-center justify-between gap-3">
@@ -71,7 +71,7 @@ export function KeyManager({ keys }: { keys: KeyRow[] }) {
           {keys.map((k, i) => (
             <div key={k._id}>
               {i > 0 && <ItemSeparator />}
-              <Item size="sm">
+              <Item size="sm" className="px-0">
                 <ItemContent>
                   <ItemTitle>{k.name}</ItemTitle>
                   <ItemDescription className="font-mono">

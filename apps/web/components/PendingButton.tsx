@@ -14,7 +14,9 @@ import { cn } from "@/lib/utils";
  * The leading slot is a fixed-width well that animates to the spinner's width:
  * with no `leading` it opens from nothing and pushes the label over, and with
  * one it collapses whatever was there. Either way the two states read as one
- * object changing rather than a swap.
+ * object changing rather than a swap. The well carries its own margin and the
+ * button drops its gap — a flex gap would apply to the empty well too and sit
+ * the label off-center inside its padding.
  */
 export function PendingButton({
   href,
@@ -38,6 +40,7 @@ export function PendingButton({
     <Button
       variant={variant}
       size={size}
+      className="gap-0"
       nativeButton={false}
       render={
         <Link href={href} aria-busy={pending} onClick={() => setPending(true)}>
@@ -46,7 +49,7 @@ export function PendingButton({
             data-pending={pending}
             className={cn(
               "relative inline-flex h-6 items-center transition-[width,margin] duration-300 ease-out",
-              pending ? "mr-1 w-4" : leadingWidth,
+              pending ? "mr-2.5 w-4" : leadingWidth,
             )}
           >
             {leading ? (

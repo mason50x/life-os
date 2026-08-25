@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Copy } from "lucide-react";
+import { CheckIcon, ClipboardIcon } from "@heroicons/react/24/outline";
 import { Button } from "@/components/ui/button";
 
 export function CopyButton({ value }: { value: string }) {
@@ -17,7 +17,7 @@ export function CopyButton({ value }: { value: string }) {
         setTimeout(() => setCopied(false), 1500);
       }}
     >
-      {copied ? <Check data-icon="inline-start" /> : <Copy data-icon="inline-start" />}
+      {copied ? <CheckIcon data-icon="inline-start" /> : <ClipboardIcon data-icon="inline-start" />}
       {copied ? "Copied" : "Copy"}
     </Button>
   );
