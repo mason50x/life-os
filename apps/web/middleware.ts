@@ -39,7 +39,7 @@ const SESSION_PATHS = [
 // The dedicated MCP subdomain serves ONLY the MCP protocol surface: the
 // transports and OAuth discovery metadata. Everything else is a 404 so the
 // web app isn't mirrored onto that host.
-const MCP_HOST_PATHS = [/^\/(mcp|sse|message)$/, /^\/\.well-known\//];
+const MCP_HOST_PATHS = [/^\/(mcp|sse|message)(\/[a-z]+)?$/, /^\/\.well-known\//];
 
 export default function middleware(req: NextRequest, event: NextFetchEvent) {
   const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");

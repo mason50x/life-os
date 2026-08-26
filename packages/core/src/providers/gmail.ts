@@ -1,4 +1,7 @@
 import {
+  Attachment,
+  AttachmentContent,
+  DraftSummary,
   EmailAddress,
   EmailProvider,
   Label,
@@ -11,10 +14,15 @@ import {
 
 const BASE = "https://gmail.googleapis.com/gmail/v1/users/me";
 
+/** Headers worth pulling on list responses, where a full fetch is too expensive. */
+const SUMMARY_HEADERS = ["Subject", "From", "To", "Date"];
+
 type GmailHeader = { name: string; value: string };
 type GmailPart = {
+  partId?: string;
+  filename?: string;
   mimeType?: string;
-  body?: { data?: string; size?: number };
+  body?: { data?: string; size?: number; attachmentId?: string };
   parts?: GmailPart[];
   headers?: GmailHeader[];
 };
@@ -67,6 +75,27 @@ function extractBodies(part: GmailPart | undefined): { text: string; html?: stri
   return { text, html };
 }
 
+/** Attachment leaves are the parts that carry a filename and an attachmentId. */
+function extractAttachments(part: GmailPart | undefined): Attachment[] {
+  const found: Attachment[] = [];
+  const walk = (p: GmailPart | undefined) => {
+    if (!p) return;
+    if (p.filename && p.body?.attachmentId) {
+      const disposition = header(p.headers, "Content-Disposition") ?? "";
+      found.push({
+        id: p.body.attachmentId,
+        filename: p.filename,
+        mimeType: p.mimeType ?? "application/octet-stream",
+        size: p.body.size ?? 0,
+        inline: /inline/i.test(disposition) || Boolean(header(p.headers, "Content-ID")),
+      });
+    }
+    p.parts?.forEach(walk);
+  };
+  walk(part);
+  return found;
+}
+
 export class GmailProvider implements EmailProvider {
   readonly provider = "gmail" as const;
 
@@ -104,6 +133,7 @@ export class GmailProvider implements EmailProvider {
       snippet: msg.snippet ?? "",
       date: header(headers, "Date"),
       isUnread: msg.labelIds?.includes("UNREAD"),
+      isStarred: msg.labelIds?.includes("STARRED"),
       labels: msg.labelIds,
     };
   }
@@ -111,11 +141,16 @@ export class GmailProvider implements EmailProvider {
   private toMessage(msg: GmailMessage): Message {
     const { text, html } = extractBodies(msg.payload);
     const headers = msg.payload?.headers;
+    const attachments = extractAttachments(msg.payload);
     return {
       ...this.toSummary(msg),
       cc: parseAddressList(header(headers, "Cc")),
+      replyTo: parseAddressList(header(headers, "Reply-To")),
+      messageId: header(headers, "Message-ID") ?? header(headers, "Message-Id"),
       body: text,
       bodyHtml: html,
+      hasAttachments: attachments.length > 0,
+      attachments,
     };
   }
 
@@ -124,11 +159,10 @@ export class GmailProvider implements EmailProvider {
       `/messages?q=${encodeURIComponent(query)}&maxResults=${maxResults}`,
     );
     const ids = list.messages ?? [];
+    const headerParams = SUMMARY_HEADERS.map((h) => `&metadataHeaders=${h}`).join("");
     const messages = await Promise.all(
       ids.map((m) =>
-        this.request<GmailMessage>(
-          `/messages/${m.id}?format=metadata&metadataHeaders=Subject&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Date`,
-        ),
+        this.request<GmailMessage>(`/messages/${m.id}?format=metadata${headerParams}`),
       ),
     );
     return messages.map((m) => this.toSummary(m));
@@ -178,6 +212,65 @@ export class GmailProvider implements EmailProvider {
     return { id: res.id };
   }
 
+  async archive(messageId: string): Promise<void> {
+    await this.modifyLabels(messageId, [], ["INBOX"]);
+  }
+
+  async trash(messageId: string): Promise<void> {
+    await this.request(`/messages/${messageId}/trash`, { method: "POST" });
+  }
+
+  async untrash(messageId: string): Promise<void> {
+    await this.request(`/messages/${messageId}/untrash`, { method: "POST" });
+  }
+
+  async markRead(messageId: string, read: boolean): Promise<void> {
+    await this.modifyLabels(messageId, read ? [] : ["UNREAD"], read ? ["UNREAD"] : []);
+  }
+
+  async setStarred(messageId: string, starred: boolean): Promise<void> {
+    await this.modifyLabels(messageId, starred ? ["STARRED"] : [], starred ? [] : ["STARRED"]);
+  }
+
+  async setSpam(messageId: string, spam: boolean): Promise<void> {
+    await this.modifyLabels(
+      messageId,
+      spam ? ["SPAM"] : ["INBOX"],
+      spam ? ["INBOX"] : ["SPAM"],
+    );
+  }
+
+  async listLabels(): Promise<Label[]> {
+    const res = await this.request<{ labels: { id: string; name: string; type: string }[] }>(
+      `/labels`,
+    );
+    return res.labels.map((l) => ({ id: l.id, name: l.name, type: l.type }));
+  }
+
+  async createLabel(name: string): Promise<Label> {
+    const res = await this.request<{ id: string; name: string; type?: string }>(`/labels`, {
+      method: "POST",
+      body: JSON.stringify({
+        name,
+        labelListVisibility: "labelShow",
+        messageListVisibility: "show",
+      }),
+    });
+    return { id: res.id, name: res.name, type: res.type ?? "user" };
+  }
+
+  async modifyLabels(messageId: string, add: string[], remove: string[]): Promise<void> {
+    await this.request(`/messages/${messageId}/modify`, {
+      method: "POST",
+      body: JSON.stringify({ addLabelIds: add, removeLabelIds: remove }),
+    });
+  }
+
+  /** Gmail files by label, so a move is "apply the label, drop out of the inbox". */
+  async move(messageId: string, destinationId: string): Promise<void> {
+    await this.modifyLabels(messageId, [destinationId], ["INBOX"]);
+  }
+
   async createDraft(input: SendEmailInput): Promise<{ id: string }> {
     const res = await this.request<{ id: string }>(`/drafts`, {
       method: "POST",
@@ -188,29 +281,73 @@ export class GmailProvider implements EmailProvider {
     return { id: res.id };
   }
 
-  async archive(messageId: string): Promise<void> {
-    await this.modifyLabels(messageId, [], ["INBOX"]);
-  }
-
-  async trash(messageId: string): Promise<void> {
-    await this.request(`/messages/${messageId}/trash`, { method: "POST" });
-  }
-
-  async markRead(messageId: string, read: boolean): Promise<void> {
-    await this.modifyLabels(messageId, read ? [] : ["UNREAD"], read ? ["UNREAD"] : []);
-  }
-
-  async listLabels(): Promise<Label[]> {
-    const res = await this.request<{ labels: { id: string; name: string; type: string }[] }>(
-      `/labels`,
+  async listDrafts(maxResults = 20): Promise<DraftSummary[]> {
+    const list = await this.request<{ drafts?: { id: string; message?: { id: string } }[] }>(
+      `/drafts?maxResults=${maxResults}`,
     );
-    return res.labels.map((l) => ({ id: l.id, name: l.name, type: l.type }));
+    const headerParams = [...SUMMARY_HEADERS, "Cc"].map((h) => `&metadataHeaders=${h}`).join("");
+    return Promise.all(
+      (list.drafts ?? []).map(async (d) => {
+        const msg = d.message?.id
+          ? await this.request<GmailMessage>(`/messages/${d.message.id}?format=metadata${headerParams}`)
+          : undefined;
+        const headers = msg?.payload?.headers;
+        return {
+          id: d.id,
+          account: this.email,
+          provider: "gmail" as const,
+          to: parseAddressList(header(headers, "To")),
+          cc: parseAddressList(header(headers, "Cc")),
+          subject: header(headers, "Subject") ?? "(no subject)",
+          snippet: msg?.snippet ?? "",
+          updatedAt: header(headers, "Date"),
+          threadId: msg?.threadId,
+        };
+      }),
+    );
   }
 
-  async modifyLabels(messageId: string, add: string[], remove: string[]): Promise<void> {
-    await this.request(`/messages/${messageId}/modify`, {
-      method: "POST",
-      body: JSON.stringify({ addLabelIds: add, removeLabelIds: remove }),
+  async updateDraft(draftId: string, input: SendEmailInput): Promise<{ id: string }> {
+    const res = await this.request<{ id: string }>(`/drafts/${draftId}`, {
+      method: "PUT",
+      body: JSON.stringify({
+        id: draftId,
+        message: { raw: this.buildRaw(input), threadId: input.threadId },
+      }),
     });
+    return { id: res.id };
+  }
+
+  async sendDraft(draftId: string): Promise<{ id: string }> {
+    const res = await this.request<{ id: string }>(`/drafts/send`, {
+      method: "POST",
+      body: JSON.stringify({ id: draftId }),
+    });
+    return { id: res.id };
+  }
+
+  async deleteDraft(draftId: string): Promise<void> {
+    await this.request(`/drafts/${draftId}`, { method: "DELETE" });
+  }
+
+  async listAttachments(messageId: string): Promise<Attachment[]> {
+    const msg = await this.request<GmailMessage>(`/messages/${messageId}?format=full`);
+    return extractAttachments(msg.payload);
+  }
+
+  async getAttachment(messageId: string, attachmentId: string): Promise<AttachmentContent> {
+    const meta = (await this.listAttachments(messageId)).find((a) => a.id === attachmentId);
+    if (!meta) {
+      throw new ProviderApiError("gmail", 404, `No attachment ${attachmentId} on ${messageId}`);
+    }
+    const res = await this.request<{ data: string; size: number }>(
+      `/messages/${messageId}/attachments/${attachmentId}`,
+    );
+    // Gmail hands back base64url; normalise to standard base64.
+    const data = Buffer.from(
+      res.data.replace(/-/g, "+").replace(/_/g, "/"),
+      "base64",
+    ).toString("base64");
+    return { ...meta, size: res.size ?? meta.size, data };
   }
 }

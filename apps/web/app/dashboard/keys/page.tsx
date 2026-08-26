@@ -1,5 +1,4 @@
 import { KeyIcon } from "@heroicons/react/24/solid";
-import { mcpUrl as mcpEndpoint } from "@/lib/env";
 import { KeyManager } from "@/components/KeyManager";
 import {
   PageBody,
@@ -51,13 +50,6 @@ export default async function ApiKeys() {
             ))}
           </Panel>
         </Section>
-
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          Keys exist for scripts and CI, where no one is around to click a browser prompt —
-          pass one with <code className="font-mono">lifeos login --token</code>. The CLI itself
-          signs in through your browser, and AI clients authenticate against{" "}
-          <code className="font-mono">{mcpEndpoint()}</code> with OAuth. Neither needs a key.
-        </p>
       </PageBody>
     </>
   );

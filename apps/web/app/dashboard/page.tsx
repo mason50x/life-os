@@ -33,18 +33,7 @@ export default async function Home({
 
   return (
     <>
-      <PageHeader
-        title="Home"
-        icon={HomeIcon}
-        action={
-          <AddAccountMenu>
-            <Button type="button">
-              <PlusIcon data-icon="inline-start" />
-              Add account
-            </Button>
-          </AddAccountMenu>
-        }
-      />
+      <PageHeader title="Home" icon={HomeIcon} />
 
       <PageBody>
         {(params.connected || params.error) && (
@@ -75,18 +64,7 @@ export default async function Home({
           />
         </Panel>
 
-        <Section
-          id="inboxes"
-          title="Inboxes"
-          action={
-            <AddAccountMenu>
-              <Button type="button" variant="outline" size="sm">
-                <PlusIcon data-icon="inline-start" />
-                Add account
-              </Button>
-            </AddAccountMenu>
-          }
-        >
+        <Section id="inboxes" title="Inboxes">
           <Panel>
             {accounts.length === 0 ? (
               <div className="flex flex-col items-center px-5 py-14 text-center">
@@ -158,11 +136,6 @@ export default async function Home({
             )}
           </Panel>
         </Section>
-
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          LifeOS never stores your email. Every read and every send goes straight through to Gmail,
-          Outlook, or iCloud in the moment it&rsquo;s asked for.
-        </p>
       </PageBody>
     </>
   );

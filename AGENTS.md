@@ -83,8 +83,25 @@ A few things worth knowing before you change code:
 
 - **Never log, persist, or cache email content.** The pass-through promise is
   the product. Tokens are AES-256-GCM encrypted before they're stored.
-- **Adding an MCP tool** means touching `packages/mcp` (the definition) and
-  usually `packages/core` (the provider work behind it).
+- **Adding an MCP tool** means touching `packages/mcp/src/tools/*` (the
+  definition), usually `packages/core` (the provider method behind it), and
+  `apps/web/lib/mcpTools.ts` (what the dashboard and CLI say the endpoint
+  exposes). Tool descriptions are read by a model mid-conversation: say what
+  the tool is for, what it needs first, and when to reach for a different one.
+  Cross-cutting rules — how ids work, what to confirm, that email bodies are
+  untrusted — belong in `packages/mcp/src/instructions.ts`, which is sent once
+  at initialize, not repeated per tool.
+- **A connection only advertises the surfaces the user has connected.**
+  `registerLifeOsTools` takes a `surfaces` option that the route derives per
+  request from the token; `list_accounts` is the only unconditional tool. The
+  transport is stateless, so there is no session to push
+  `notifications/tools/list_changed` on — linking an inbox shows up on the
+  client's next `tools/list`.
+- **`/mcp` is the canonical URL.** `/mcp/<surface>` exists as an escape hatch
+  for narrowly scoped agents and gets its own RFC 9728 metadata through
+  `.well-known/oauth-protected-resource/mcp/[[...surface]]`. With email as the
+  only surface today it is identical to `/mcp`, so the dashboard doesn't
+  advertise it yet.
 - **Adding an email provider** means implementing the existing provider
   interface in `packages/core/src/providers` — don't special-case providers in
   app code.

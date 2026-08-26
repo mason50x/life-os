@@ -3,6 +3,9 @@ import { simpleParser, type AddressObject, type ParsedMail } from "mailparser";
 import { createTransport } from "nodemailer";
 import MailComposer from "nodemailer/lib/mail-composer";
 import {
+  Attachment,
+  AttachmentContent,
+  DraftSummary,
   EmailAddress,
   EmailProvider,
   Label,
@@ -74,6 +77,44 @@ function decodePart(buf: Buffer, encoding?: string): string {
       .replace(/=([0-9A-Fa-f]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
   }
   return buf.toString("utf8");
+}
+
+/** Same as decodePart, but keeps the bytes intact for binary attachments. */
+function decodePartBuffer(buf: Buffer, encoding?: string): Buffer {
+  const enc = encoding?.toLowerCase();
+  if (enc === "base64") return Buffer.from(buf.toString("ascii"), "base64");
+  if (enc === "quoted-printable") return Buffer.from(decodePart(buf, enc), "utf8");
+  return buf;
+}
+
+/**
+ * Attachment leaves of a body structure, keyed by IMAP part number — that
+ * part number is the attachment id an iCloud account hands back.
+ */
+function structureAttachments(
+  node: MessageStructureObject | undefined,
+): (Attachment & { encoding?: string })[] {
+  const found: (Attachment & { encoding?: string })[] = [];
+  const walk = (n: MessageStructureObject | undefined) => {
+    if (!n) return;
+    const params = (n.parameters ?? {}) as Record<string, string>;
+    const dispParams = (n.dispositionParameters ?? {}) as Record<string, string>;
+    const filename = dispParams.filename ?? params.name;
+    const isLeaf = !n.childNodes?.length;
+    if (isLeaf && (n.disposition === "attachment" || filename)) {
+      found.push({
+        id: n.part ?? "1",
+        filename: filename ?? `part-${n.part ?? "1"}`,
+        mimeType: n.type ?? "application/octet-stream",
+        size: n.size ?? 0,
+        inline: n.disposition === "inline",
+        encoding: n.encoding,
+      });
+    }
+    n.childNodes?.forEach(walk);
+  };
+  walk(node);
+  return found;
 }
 
 /** Find the first text/plain (fallback text/html) leaf part of a body structure. */
@@ -240,6 +281,10 @@ export class IcloudProvider implements EmailProvider {
       snippet,
       date: env?.date ? new Date(env.date).toISOString() : undefined,
       isUnread: msg.flags ? !msg.flags.has("\\Seen") : undefined,
+      isStarred: msg.flags ? msg.flags.has("\\Flagged") : undefined,
+      hasAttachments: msg.bodyStructure
+        ? structureAttachments(msg.bodyStructure).length > 0
+        : undefined,
       labels: [mailbox],
     };
   }
@@ -249,7 +294,12 @@ export class IcloudProvider implements EmailProvider {
     uid: number,
     parsed: ParsedMail,
     flags?: Set<string>,
+    /** Body structure, when fetched — the only source of usable attachment part ids. */
+    structure?: MessageStructureObject,
   ): Message {
+    const attachments = structure
+      ? structureAttachments(structure).map(({ encoding: _e, ...a }) => a)
+      : undefined;
     const id = encodeId(mailbox, uid);
     const text = parsed.text?.trim()
       ? parsed.text
@@ -266,9 +316,16 @@ export class IcloudProvider implements EmailProvider {
       snippet: text.replace(/\s+/g, " ").trim().slice(0, 200),
       date: parsed.date?.toISOString(),
       isUnread: flags ? !flags.has("\\Seen") : undefined,
+      isStarred: flags ? flags.has("\\Flagged") : undefined,
+      replyTo: toAddresses(parsed.replyTo),
+      messageId: parsed.messageId,
       labels: [mailbox],
       body: text,
       bodyHtml: parsed.html || undefined,
+      hasAttachments: attachments
+        ? attachments.length > 0
+        : (parsed.attachments ?? []).length > 0,
+      ...(attachments ? { attachments } : {}),
     };
   }
 
@@ -350,11 +407,21 @@ export class IcloudProvider implements EmailProvider {
     return this.withImap(async (client) => {
       const lock = await client.getMailboxLock(mailbox);
       try {
-        const msg = await client.fetchOne(String(uid), { uid: true, source: true, flags: true }, { uid: true });
+        const msg = await client.fetchOne(
+          String(uid),
+          { uid: true, source: true, flags: true, bodyStructure: true },
+          { uid: true },
+        );
         if (!msg || !msg.source) {
           throw new ProviderApiError("icloud", 404, `Message not found: ${messageId}`);
         }
-        return this.toMessage(mailbox, uid, await simpleParser(msg.source), msg.flags);
+        return this.toMessage(
+          mailbox,
+          uid,
+          await simpleParser(msg.source),
+          msg.flags,
+          msg.bodyStructure,
+        );
       } finally {
         lock.release();
       }
@@ -482,8 +549,12 @@ export class IcloudProvider implements EmailProvider {
     return composer.compile().build();
   }
 
-  async send(input: SendEmailInput): Promise<{ id: string }> {
-    const raw = await this.buildRaw(input);
+  /**
+   * Hand a fully composed message to Apple's SMTP server, then file a copy in
+   * Sent — iCloud doesn't do that for SMTP-submitted mail the way a webmail
+   * client would, so the sent copy is ours to make.
+   */
+  private async smtpSend(raw: Buffer, recipients: string[]): Promise<{ id: string }> {
     const pass = await this.getPassword();
     // Apple: SMTP username is the full (primary) address; port 587 with
     // STARTTLS. The From/envelope address may be any alias or custom-domain
@@ -496,17 +567,13 @@ export class IcloudProvider implements EmailProvider {
       auth: { user: this.loginEmail, pass },
     });
     try {
-      await transport.sendMail({
-        envelope: { from: this.email, to: [...input.to, ...(input.cc ?? []), ...(input.bcc ?? [])] },
-        raw,
-      });
+      await transport.sendMail({ envelope: { from: this.email, to: recipients }, raw });
     } catch (e) {
       throw new ProviderApiError("icloud", 502, `SMTP send failed: ${e}`);
     } finally {
       transport.close();
     }
 
-    // iCloud doesn't copy SMTP-sent mail to Sent; append it ourselves (best-effort).
     try {
       return await this.withImap(async (client) => {
         const sentPath = await this.specialPath(client, "\\Sent");
@@ -518,6 +585,11 @@ export class IcloudProvider implements EmailProvider {
     }
   }
 
+  async send(input: SendEmailInput): Promise<{ id: string }> {
+    const raw = await this.buildRaw(input);
+    return this.smtpSend(raw, [...input.to, ...(input.cc ?? []), ...(input.bcc ?? [])]);
+  }
+
   async createDraft(input: SendEmailInput): Promise<{ id: string }> {
     const raw = await this.buildRaw(input);
     return this.withImap(async (client) => {
@@ -525,6 +597,19 @@ export class IcloudProvider implements EmailProvider {
       const res = await client.append(draftsPath, raw, ["\\Draft"]);
       if (!res) throw new ProviderApiError("icloud", 502, "Could not save draft");
       return { id: res.uid ? encodeId(res.destination, res.uid) : "draft" };
+    });
+  }
+
+  private async moveToPath(messageId: string, destination: string): Promise<void> {
+    const { mailbox, uid } = decodeId(messageId);
+    if (mailbox === destination) return;
+    await this.withImap(async (client) => {
+      const lock = await client.getMailboxLock(mailbox);
+      try {
+        await client.messageMove(String(uid), destination, { uid: true });
+      } finally {
+        lock.release();
+      }
     });
   }
 
@@ -549,6 +634,20 @@ export class IcloudProvider implements EmailProvider {
     await this.moveTo(messageId, "\\Trash");
   }
 
+  /** IMAP keeps no record of where a message was trashed from; the inbox is the target. */
+  async untrash(messageId: string): Promise<void> {
+    await this.moveToPath(messageId, "INBOX");
+  }
+
+  async setSpam(messageId: string, spam: boolean): Promise<void> {
+    if (spam) await this.moveTo(messageId, "\\Junk");
+    else await this.moveToPath(messageId, "INBOX");
+  }
+
+  async move(messageId: string, destinationId: string): Promise<void> {
+    await this.moveToPath(messageId, destinationId);
+  }
+
   async markRead(messageId: string, read: boolean): Promise<void> {
     const { mailbox, uid } = decodeId(messageId);
     await this.withImap(async (client) => {
@@ -556,6 +655,19 @@ export class IcloudProvider implements EmailProvider {
       try {
         if (read) await client.messageFlagsAdd(String(uid), ["\\Seen"], { uid: true });
         else await client.messageFlagsRemove(String(uid), ["\\Seen"], { uid: true });
+      } finally {
+        lock.release();
+      }
+    });
+  }
+
+  async setStarred(messageId: string, starred: boolean): Promise<void> {
+    const { mailbox, uid } = decodeId(messageId);
+    await this.withImap(async (client) => {
+      const lock = await client.getMailboxLock(mailbox);
+      try {
+        if (starred) await client.messageFlagsAdd(String(uid), ["\\Flagged"], { uid: true });
+        else await client.messageFlagsRemove(String(uid), ["\\Flagged"], { uid: true });
       } finally {
         lock.release();
       }
@@ -575,13 +687,157 @@ export class IcloudProvider implements EmailProvider {
 
   /** iCloud has folders, not labels: `add[0]` is treated as a destination mailbox path. */
   async modifyLabels(messageId: string, add: string[], _remove: string[]): Promise<void> {
-    if (!add[0]) return;
-    const { mailbox, uid } = decodeId(messageId);
-    const destination = add[0];
+    if (add[0]) await this.moveToPath(messageId, add[0]);
+  }
+
+  async createLabel(name: string): Promise<Label> {
+    return this.withImap(async (client) => {
+      const res = await client.mailboxCreate(name);
+      return { id: res.path, name, type: "folder" };
+    });
+  }
+
+  async listDrafts(maxResults = 20): Promise<DraftSummary[]> {
+    return this.withImap(async (client) => {
+      const draftsPath = await this.specialPath(client, "\\Drafts");
+      const lock = await client.getMailboxLock(draftsPath);
+      try {
+        const uids = (await client.search({ all: true }, { uid: true })) || [];
+        if (uids.length === 0) return [];
+        const recent = uids.sort((a, b) => b - a).slice(0, maxResults);
+        const drafts: DraftSummary[] = [];
+        for await (const msg of client.fetch(
+          recent.join(","),
+          { uid: true, envelope: true },
+          { uid: true },
+        )) {
+          const env = msg.envelope;
+          drafts.push({
+            id: encodeId(draftsPath, msg.uid),
+            account: this.email,
+            provider: "icloud",
+            to: envelopeAddresses(env?.to),
+            cc: envelopeAddresses(env?.cc),
+            subject: env?.subject ?? "(no subject)",
+            snippet: "",
+            updatedAt: env?.date ? new Date(env.date).toISOString() : undefined,
+          });
+        }
+        return drafts.sort((a, b) => (b.updatedAt ?? "").localeCompare(a.updatedAt ?? ""));
+      } finally {
+        lock.release();
+      }
+    });
+  }
+
+  /** IMAP can't edit a stored message, so an update is append-then-delete. */
+  async updateDraft(draftId: string, input: SendEmailInput): Promise<{ id: string }> {
+    const raw = await this.buildRaw(input);
+    const { mailbox, uid } = decodeId(draftId);
+    return this.withImap(async (client) => {
+      const draftsPath = await this.specialPath(client, "\\Drafts");
+      const res = await client.append(draftsPath, raw, ["\\Draft"]);
+      if (!res) throw new ProviderApiError("icloud", 502, "Could not save draft");
+      const lock = await client.getMailboxLock(mailbox);
+      try {
+        await client.messageDelete(String(uid), { uid: true });
+      } finally {
+        lock.release();
+      }
+      return { id: res.uid ? encodeId(res.destination, res.uid) : "draft" };
+    });
+  }
+
+  async sendDraft(draftId: string): Promise<{ id: string }> {
+    const { mailbox, uid } = decodeId(draftId);
+    const draft = await this.withImap(async (client) => {
+      const lock = await client.getMailboxLock(mailbox);
+      try {
+        const msg = await client.fetchOne(String(uid), { uid: true, source: true }, { uid: true });
+        if (!msg || !msg.source) {
+          throw new ProviderApiError("icloud", 404, `Draft not found: ${draftId}`);
+        }
+        return { source: msg.source, parsed: await simpleParser(msg.source) };
+      } finally {
+        lock.release();
+      }
+    });
+    const recipients = [
+      ...toAddresses(draft.parsed.to),
+      ...toAddresses(draft.parsed.cc),
+      ...toAddresses(draft.parsed.bcc),
+    ].map((a) => a.email);
+    if (recipients.length === 0) {
+      throw new ProviderApiError("icloud", 400, `Draft ${draftId} has no recipients.`);
+    }
+    const sent = await this.smtpSend(draft.source, recipients);
+    await this.deleteDraft(draftId).catch(() => undefined);
+    return sent;
+  }
+
+  async deleteDraft(draftId: string): Promise<void> {
+    const { mailbox, uid } = decodeId(draftId);
     await this.withImap(async (client) => {
       const lock = await client.getMailboxLock(mailbox);
       try {
-        await client.messageMove(String(uid), destination, { uid: true });
+        await client.messageDelete(String(uid), { uid: true });
+      } finally {
+        lock.release();
+      }
+    });
+  }
+
+  async listAttachments(messageId: string): Promise<Attachment[]> {
+    const { mailbox, uid } = decodeId(messageId);
+    return this.withImap(async (client) => {
+      const lock = await client.getMailboxLock(mailbox);
+      try {
+        const msg = await client.fetchOne(
+          String(uid),
+          { uid: true, bodyStructure: true },
+          { uid: true },
+        );
+        if (!msg) throw new ProviderApiError("icloud", 404, `Message not found: ${messageId}`);
+        // Drop the `encoding` field the fetcher needs but callers shouldn't see.
+        return structureAttachments(msg.bodyStructure).map(({ encoding: _e, ...a }) => a);
+      } finally {
+        lock.release();
+      }
+    });
+  }
+
+  async getAttachment(messageId: string, attachmentId: string): Promise<AttachmentContent> {
+    const { mailbox, uid } = decodeId(messageId);
+    return this.withImap(async (client) => {
+      const lock = await client.getMailboxLock(mailbox);
+      try {
+        const meta = await client.fetchOne(
+          String(uid),
+          { uid: true, bodyStructure: true },
+          { uid: true },
+        );
+        const match = structureAttachments(meta ? meta.bodyStructure : undefined).find(
+          (a) => a.id === attachmentId,
+        );
+        if (!match) {
+          throw new ProviderApiError(
+            "icloud",
+            404,
+            `No attachment ${attachmentId} on ${messageId}`,
+          );
+        }
+        const res = await client.fetchOne(
+          String(uid),
+          { uid: true, bodyParts: [{ key: attachmentId }] },
+          { uid: true },
+        );
+        const buf = res && res.bodyParts?.get(attachmentId);
+        if (!buf) {
+          throw new ProviderApiError("icloud", 502, `Could not read attachment ${attachmentId}`);
+        }
+        const bytes = decodePartBuffer(buf, match.encoding);
+        const { encoding: _e, ...attachment } = match;
+        return { ...attachment, size: bytes.length, data: bytes.toString("base64") };
       } finally {
         lock.release();
       }

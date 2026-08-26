@@ -1,6 +1,6 @@
 import { LinkIcon } from "@heroicons/react/24/solid";
 import { mcpUrl as mcpEndpoint } from "@/lib/env";
-import { MCP_TOOLS } from "@/lib/mcpTools";
+import { MCP_TOOL_GROUPS, MCP_TOOLS } from "@/lib/mcpTools";
 import { CopyButton } from "@/components/CopyButton";
 import { ProviderMark, providerLabel } from "@/components/dashboard/ProviderMark";
 import {
@@ -82,20 +82,31 @@ export default async function McpConnection() {
 
         <Section
           title="Tools on the wire"
+          action={<span className="text-xs text-muted-foreground">{MCP_TOOLS.length} tools</span>}
         >
-          <Panel className="grid sm:grid-cols-2">
-            {MCP_TOOLS.map(([name, what], i) => (
-              <div key={name} className={cn("px-5 py-3", cellBorders(i, 2))}>
-                <code className="font-mono text-sm">{name}</code>
-                <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{what}</p>
+          <div className="space-y-5">
+            {MCP_TOOL_GROUPS.map((group) => (
+              <div key={group.title}>
+                <p className="mb-2 font-mono text-xs tracking-widest text-muted-foreground uppercase">
+                  {group.title}
+                </p>
+                <Panel className="grid sm:grid-cols-2">
+                  {group.tools.map(([name, what], i) => (
+                    <div key={name} className={cn("px-5 py-3", cellBorders(i, 2))}>
+                      <code className="font-mono text-sm">{name}</code>
+                      <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{what}</p>
+                    </div>
+                  ))}
+                </Panel>
               </div>
             ))}
-          </Panel>
+          </div>
         </Section>
 
         <p className="text-xs leading-relaxed text-muted-foreground">
-          You&rsquo;ll sign in with your LifeOS account the first time a client connects — OAuth
-          through WorkOS AuthKit, and your mail credentials never reach the client. Revoking a
+          A client only sees the tools your connected inboxes can answer — connect one and the rest
+          appear. You&rsquo;ll sign in with your LifeOS account the first time a client connects —
+          OAuth through WorkOS AuthKit, and your mail credentials never reach the client. Revoking a
           client&rsquo;s access, or disconnecting an inbox, takes effect on the next call.
         </p>
       </PageBody>
