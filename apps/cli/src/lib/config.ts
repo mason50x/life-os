@@ -12,7 +12,7 @@ const CONFIG_PATH = join(CONFIG_DIR, "config.json");
 export interface CliConfig {
   /** Which LifeOS instance this machine talks to. */
   apiUrl: string;
-  /** Cached npm registry answer, so launch doesn't wait on the network. */
+  /** Cached npm registry answer. A known-newer version is trusted for a day. */
   update?: { checkedAt: number; latest: string };
 }
 

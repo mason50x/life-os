@@ -3,7 +3,11 @@ import { fileURLToPath } from "node:url";
 import { readConfig, updateConfig } from "./config.js";
 
 export const PACKAGE_NAME = "@cognify-software/lifeos";
-/** How long a registry answer is trusted, so launch never waits on the network. */
+/**
+ * How long a *known update* is trusted without hitting the registry. A cached
+ * "you're already on latest" is never reused — that's the check that would
+ * hide a release published later the same day.
+ */
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 /**
@@ -22,8 +26,9 @@ export function isNewer(candidate: string, current: string): boolean {
 }
 
 /**
- * Latest published version, cached for a day. Returns null when the registry
- * is unreachable — an update check is never worth a visible failure.
+ * Latest published version. `force` skips the on-disk cache. Returns null
+ * when the registry is unreachable — an update check is never worth a
+ * visible failure.
  */
 export async function latestVersion(force = false): Promise<string | null> {
   const config = readConfig();
@@ -48,7 +53,14 @@ export async function latestVersion(force = false): Promise<string | null> {
 }
 
 export async function checkForUpdate(current: string, force = false): Promise<string | null> {
-  const latest = await latestVersion(force);
+  if (!force) {
+    const cached = readConfig().update;
+    // Only skip the network when we already know a newer version exists.
+    if (cached && Date.now() - cached.checkedAt < CACHE_TTL_MS && isNewer(cached.latest, current)) {
+      return cached.latest;
+    }
+  }
+  const latest = await latestVersion(true);
   return latest && isNewer(latest, current) ? latest : null;
 }
 
