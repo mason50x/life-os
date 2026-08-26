@@ -6,6 +6,28 @@ import { Layout } from "../src/ui/Layout.js";
 import type { LifeOsClient } from "../src/lib/api.js";
 import type { Account, ApiKey } from "../src/lib/types.js";
 
+const CREATED = "lifeos_shownonce123";
+
+// The App shell is exercised below; stub what it reaches for on mount.
+vi.mock("../src/lib/api.js", () => ({
+  LifeOsClient: class {
+    accounts = async () => [];
+    keys = async () => KEYS;
+    createKey = async () => ({ key: CREATED });
+    mcp = async () => ({ url: "http://localhost:4999/mcp", tools: [], reaches: [] });
+  },
+}));
+vi.mock("../src/lib/auth.js", () => ({
+  currentCredential: async () => ({ identity: { email: "you@example.com" } }),
+  signOut: async () => {},
+}));
+vi.mock("../src/lib/update.js", () => ({
+  checkForUpdate: async () => null,
+  runUpdate: async () => {},
+}));
+
+const { App } = await import("../src/app.js");
+
 const ACCOUNTS: Account[] = [
   { id: "a1", userId: "u", provider: "gmail", email: "one@gmail.com", status: "active", connectedAt: Date.parse("2026-08-03T12:00:00Z") },
   { id: "a2", userId: "u", provider: "outlook", email: "two@outlook.com", status: "needs_reauth", connectedAt: Date.parse("2026-06-14T12:00:00Z") },
@@ -133,5 +155,28 @@ describe("Keys", () => {
     await settle();
     expect(lastFrame()).toContain(created);
     expect(lastFrame()).toContain("no way to show this again");
+  });
+
+  // Regression: the shell used to remount every screen whenever one reported a
+  // change, which wiped the reveal a frame after it appeared.
+  it("keeps the revealed key on screen after telling the shell about it", async () => {
+    const { lastFrame, stdin } = render(<App apiUrl="http://localhost:4999" version="0.0.0" />);
+    await settle();
+    stdin.write("\u001B"); // esc — focus the rail
+    await settle();
+    stdin.write("\u001B[B"); // ↓ MCP
+    await settle();
+    stdin.write("\u001B[B"); // ↓ Keys
+    await settle();
+    stdin.write("\r");
+    await settle();
+    stdin.write("n");
+    await settle();
+    stdin.write("laptop");
+    await settle();
+    stdin.write("\r");
+    await settle();
+    await settle();
+    expect(lastFrame()).toContain(CREATED);
   });
 });

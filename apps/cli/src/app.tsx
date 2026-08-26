@@ -44,6 +44,9 @@ export function App({ apiUrl, version }: { apiUrl: string; version: string }) {
 
   // Stable across renders: screens key their data loading off this identity.
   const client = useMemo(() => new LifeOsClient(apiUrl), [apiUrl]);
+  // Only re-reads the session — screens reload their own data after a change,
+  // and remounting them here would throw away whatever they are showing (the
+  // one-time reveal of a freshly minted API key, most visibly).
   const onChanged = useCallback(() => setReloadKey((k) => k + 1), []);
 
   const refreshIdentity = useCallback(async () => {
@@ -140,13 +143,13 @@ export function App({ apiUrl, version }: { apiUrl: string; version: string }) {
       {helpOpen ? (
         <Help />
       ) : screen === "accounts" ? (
-        <Accounts key={`accounts-${reloadKey}`} {...screenProps} />
+        <Accounts {...screenProps} />
       ) : screen === "mcp" ? (
-        <Mcp key={`mcp-${reloadKey}`} {...screenProps} />
+        <Mcp {...screenProps} />
       ) : screen === "keys" ? (
-        <Keys key={`keys-${reloadKey}`} {...screenProps} />
+        <Keys {...screenProps} />
       ) : screen === "doctor" ? (
-        <Doctor key={`doctor-${reloadKey}`} {...screenProps} />
+        <Doctor {...screenProps} />
       ) : (
         <Settings
           {...screenProps}
