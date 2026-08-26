@@ -8,3 +8,9 @@ dist/
 .vercel
 .DS_Store
 *.tsbuildinfo
+
+# Convex's agent skills, vendored by the `skills` CLI. Third-party content with
+# its own license — tracked as a lockfile, not republished from this repo.
+# Restore with: npx skills add get-convex/agent-skills
+apps/web/.claude/
+apps/web/.agents/

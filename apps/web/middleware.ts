@@ -6,7 +6,9 @@ function runAuthkit(req: NextRequest, event: NextFetchEvent) {
   // Built per request so redirectUri can fall back to the request host when
   // NEXT_PUBLIC_WORKOS_REDIRECT_URI is missing (AuthKit throws otherwise).
   return authkitMiddleware({
-    debug: true,
+    // Logs session and redirect internals. Fine locally, noise-plus-disclosure
+    // in production.
+    debug: process.env.NODE_ENV !== "production",
     redirectUri: workosRedirectUri(req),
     middlewareAuth: {
       // /login is public so its route handler runs and picks the AuthKit URL

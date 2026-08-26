@@ -12,7 +12,18 @@ import { backendName } from "../lib/credentials.js";
 import { canOpenBrowser, copyToClipboard, hasCommand, openBrowser } from "../lib/platform.js";
 import { checkForUpdate, runUpdate } from "../lib/update.js";
 import { PROVIDER_LABEL, type Provider } from "../lib/types.js";
-import { bold, dim, fail, green, indigo, json, print, red, STATUS_MARK } from "./output.js";
+import {
+  bold,
+  dim,
+  fail,
+  green,
+  indigo,
+  json,
+  print,
+  promptSecret,
+  red,
+  STATUS_MARK,
+} from "./output.js";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
@@ -115,6 +126,27 @@ export async function accountsList(opts: { apiUrl?: string; json?: boolean }): P
   }
 }
 
+/**
+ * Where an iCloud app-specific password comes from, in order of how much it
+ * leaks: a no-echo prompt, then the environment for CI, and only then `--password`
+ * — which lands in shell history and the process table, and stays supported
+ * because scripts written against 0.2.x pass it.
+ */
+async function icloudPassword(fromFlag?: string): Promise<string> {
+  if (fromFlag) return fromFlag;
+  const fromEnv = process.env.LIFEOS_ICLOUD_PASSWORD;
+  if (fromEnv) return fromEnv;
+  try {
+    const typed = await promptSecret("App-specific password: ");
+    if (typed) return typed;
+  } catch {
+    // No TTY — fall through to the message below.
+  }
+  return fail(
+    "iCloud needs an app-specific password. Run this in a terminal to be prompted, or set LIFEOS_ICLOUD_PASSWORD.",
+  );
+}
+
 export async function accountsAdd(
   provider: string,
   opts: { apiUrl?: string; email?: string; password?: string; sendAs?: string },
@@ -123,11 +155,10 @@ export async function accountsAdd(
   const normalized = provider.toLowerCase() as Provider;
 
   if (normalized === "icloud") {
-    if (!opts.email || !opts.password) {
-      fail("iCloud needs --email and --password (an app-specific password).");
-    }
+    if (!opts.email) fail("iCloud needs --email.");
+    const password = await icloudPassword(opts.password);
     const { addresses } = await guard(() =>
-      client.connectIcloud(opts.email!, opts.password!, opts.sendAs?.split(/[\s,;]+/).filter(Boolean) ?? []),
+      client.connectIcloud(opts.email!, password, opts.sendAs?.split(/[\s,;]+/).filter(Boolean) ?? []),
     );
     return print(`${green("✓")} Connected ${addresses.join(", ")}.`);
   }

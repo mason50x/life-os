@@ -64,12 +64,17 @@ Everything also works non-interactively, for scripts and CI:
 ```bash
 lifeos accounts list --json
 lifeos accounts add gmail                     # opens the browser to authorize
-lifeos accounts add icloud --email you@icloud.com --password xxxx-xxxx-xxxx-xxxx
+lifeos accounts add icloud --email you@icloud.com  # prompts for the app password
 lifeos mcp install --client claude-code
 lifeos keys create ci
 lifeos doctor                                 # exits non-zero if anything is broken
 lifeos login --token lifeos_...               # CI: no browser needed
 ```
+
+The iCloud app-specific password is read from a no-echo prompt. In CI, where
+there's no terminal to prompt on, pass it as `LIFEOS_ICLOUD_PASSWORD` — not as
+`--password`, which shell history keeps and any process on the box can read out
+of the process table.
 
 Updates come from npm. The app checks once a day and offers the upgrade in the
 footer; `u` installs it, or run `lifeos update`.

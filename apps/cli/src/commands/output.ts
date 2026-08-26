@@ -26,6 +26,51 @@ export function fail(message: string): never {
   process.exit(1);
 }
 
+/**
+ * Read a secret from the terminal without echoing it.
+ *
+ * The alternative is a `--password` flag, which puts the secret in argv: saved
+ * to shell history, and readable by anything that can list the process table.
+ * The prompt goes to stderr so `--json` stdout stays clean and pipeable.
+ *
+ * Rejects when there is no TTY to prompt on — callers fall back to an env var
+ * so CI still has a way through.
+ */
+export function promptSecret(label: string): Promise<string> {
+  const { stdin, stderr } = process;
+  if (!stdin.isTTY) return Promise.reject(new Error("not a tty"));
+
+  return new Promise<string>((resolve) => {
+    let value = "";
+    stderr.write(label);
+    stdin.setRawMode(true);
+    stdin.resume();
+    stdin.setEncoding("utf8");
+
+    const finish = (result: string | null) => {
+      stdin.setRawMode(false);
+      stdin.pause();
+      stdin.removeListener("data", onData);
+      stderr.write("\n");
+      // Ctrl-C mid-prompt should quit, not hand back a half-typed secret.
+      if (result === null) process.exit(130);
+      resolve(result);
+    };
+
+    const onData = (chunk: string) => {
+      for (const ch of chunk) {
+        if (ch === "\r" || ch === "\n") return finish(value);
+        if (ch === "\u0003") return finish(null);
+        // Backspace / delete. Nothing was echoed, so nothing to erase on screen.
+        if (ch === "\u007f" || ch === "\b") value = value.slice(0, -1);
+        else value += ch;
+      }
+    };
+
+    stdin.on("data", onData);
+  });
+}
+
 export const STATUS_MARK: Record<string, string> = {
   active: green("●"),
   needs_reauth: yellow("●"),

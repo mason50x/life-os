@@ -109,7 +109,10 @@ accounts
   .command("add <provider>")
   .description("Connect an inbox: gmail, outlook, or icloud")
   .option("--email <address>", "iCloud only")
-  .option("--password <app-password>", "iCloud only — an app-specific password")
+  .option(
+    "--password <app-password>",
+    "iCloud only — discouraged: argv is visible to other processes and saved to shell history. Omit to be prompted, or set LIFEOS_ICLOUD_PASSWORD",
+  )
   .option("--send-as <addresses>", "iCloud only — alias addresses, space separated")
   .action(act(cmd.accountsAdd));
 accounts

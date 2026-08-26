@@ -31,8 +31,11 @@ export async function latestVersion(force = false): Promise<string | null> {
     return config.update.latest;
   }
   try {
+    // Plain JSON: the abbreviated-packument type this used to ask for is only
+    // served on the full packument, so `/latest` answered every request with a
+    // 406 and the check silently never fired.
     const res = await fetch(`https://registry.npmjs.org/${PACKAGE_NAME}/latest`, {
-      headers: { accept: "application/vnd.npm.install-v1+json" },
+      headers: { accept: "application/json" },
       signal: AbortSignal.timeout(4000),
     });
     if (!res.ok) return config.update?.latest ?? null;

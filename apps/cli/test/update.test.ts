@@ -1,5 +1,14 @@
-import { describe, expect, it } from "vitest";
-import { isNewer, updateCommand } from "../src/lib/update.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+// Keep the registry check off the real filesystem — it caches into ~/.lifeos.
+vi.mock("../src/lib/config.js", () => ({
+  readConfig: () => ({ apiUrl: "https://lifeos.you" }),
+  updateConfig: () => ({ apiUrl: "https://lifeos.you" }),
+}));
+
+const { checkForUpdate, isNewer, latestVersion, updateCommand } = await import(
+  "../src/lib/update.js"
+);
 
 describe("isNewer", () => {
   it("compares numerically, not lexically", () => {
@@ -31,5 +40,29 @@ describe("updateCommand", () => {
       expect(args.join(" ")).toContain("@cognify-software/lifeos@latest");
       expect(args.join(" ")).toMatch(/-g|global/);
     }
+  });
+});
+
+describe("latestVersion", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  /**
+   * Regression: `/latest` 406s on the abbreviated-packument media type — that
+   * one only exists on the full packument. The check read the 406 as "registry
+   * unreachable" and reported "up to date" for the CLI's whole life.
+   */
+  it("asks the registry for something it will actually answer", async () => {
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      const accept = (init?.headers as Record<string, string>)?.accept ?? "";
+      if (accept.includes("vnd.npm.install-v1")) {
+        return { ok: false, status: 406, json: async () => ({}) } as Response;
+      }
+      return { ok: true, status: 200, json: async () => ({ version: "0.2.3" }) } as Response;
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    expect(await latestVersion(true)).toBe("0.2.3");
+    expect(await checkForUpdate("0.2.2", true)).toBe("0.2.3");
+    expect(fetchMock).toHaveBeenCalled();
   });
 });
