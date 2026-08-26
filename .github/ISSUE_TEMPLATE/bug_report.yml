@@ -1,0 +1,78 @@
+name: Bug report
+description: Something isn't working
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Found a security issue? Don't file it here — see
+        [SECURITY.md](https://github.com/mason50x/life-os/blob/main/SECURITY.md).
+
+        Please don't paste API keys, OAuth tokens, or `.env` contents. Redact
+        anything that looks like a secret before you post.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where does it happen?
+      options:
+        - CLI (lifeos)
+        - Dashboard (web)
+        - MCP endpoint (/mcp)
+        - Connecting an inbox (Gmail / Outlook / iCloud)
+        - Self-hosting / setup
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you expected, and what you got instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Run `lifeos accounts add gmail`
+        2. …
+        3. See error
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error output
+      description: Any error message or stack trace. Rendered as code, no backticks needed.
+      render: shell
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: "`lifeos --version`, or the commit SHA if you're running from a checkout."
+    validations:
+      required: true
+
+  - type: input
+    id: env
+    attributes:
+      label: OS and Node version
+      placeholder: macOS 15.2, Node 22.11
+    validations:
+      required: true
+
+  - type: dropdown
+    id: hosting
+    attributes:
+      label: Which instance?
+      options:
+        - Self-hosted
+        - Hosted LifeOS
+    validations:
+      required: true

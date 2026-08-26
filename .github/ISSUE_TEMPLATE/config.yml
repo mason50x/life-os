@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/mason50x/life-os/security/advisories/new
+    about: Report privately. Please don't open a public issue for anything that touches account access or tokens.
+  - name: Setup help
+    url: https://github.com/mason50x/life-os/blob/main/README.md
+    about: The README walks through WorkOS, Convex, Google, and Microsoft setup step by step. Most "won't boot" problems are a missing env var.

@@ -9,8 +9,9 @@ dist/
 .DS_Store
 *.tsbuildinfo
 
-# Convex's agent skills, vendored by the `skills` CLI. Third-party content with
-# its own license — tracked as a lockfile, not republished from this repo.
-# Restore with: npx skills add get-convex/agent-skills
+# Convex's agent skills, vendored from get-convex/agent-skills. Third-party
+# content under its own license, so this repo tracks the lockfile
+# (apps/web/skills-lock.json) rather than republishing the files.
+# Restore with: cd apps/web && npx convex ai-files install
 apps/web/.claude/
 apps/web/.agents/

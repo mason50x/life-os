@@ -58,12 +58,32 @@ export function promptSecret(label: string): Promise<string> {
     };
 
     const onData = (chunk: string) => {
-      for (const ch of chunk) {
+      for (let i = 0; i < chunk.length; i++) {
+        const ch = chunk[i]!;
         if (ch === "\r" || ch === "\n") return finish(value);
         if (ch === "\u0003") return finish(null);
         // Backspace / delete. Nothing was echoed, so nothing to erase on screen.
-        if (ch === "\u007f" || ch === "\b") value = value.slice(0, -1);
-        else value += ch;
+        if (ch === "\u007f" || ch === "\b") {
+          value = value.slice(0, -1);
+          continue;
+        }
+        // Arrow keys, Home, F-keys: swallow the whole sequence. Filtering one
+        // character at a time would drop the ESC and keep the printable tail —
+        // a Left arrow would leave "[D" in the secret — and since nothing is
+        // echoed, that stays invisible until the password mysteriously fails.
+        if (ch === "\u001b") {
+          if (chunk[i + 1] === "[" || chunk[i + 1] === "O") {
+            i += 2;
+            // CSI runs until a final byte in @…~.
+            while (i < chunk.length && !(chunk[i]! >= "@" && chunk[i]! <= "~")) i++;
+          } else {
+            i++; // ESC + one character, e.g. an Alt chord.
+          }
+          continue;
+        }
+        // Any remaining control character is not part of a password.
+        if (ch < " ") continue;
+        value += ch;
       }
     };
 

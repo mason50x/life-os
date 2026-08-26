@@ -89,3 +89,15 @@ node apps/cli/dist/cli.js login --api-url http://localhost:3000
 ## Deploy
 
 Deploy `apps/web` to Vercel (root directory `apps/web`, Turborepo detected automatically). Set every env var from `.env.example` (with production URLs), run `npx convex deploy`, and update the Google/Microsoft/WorkOS redirect URIs to the production domain.
+
+Two secrets carry the whole security model, so generate them fresh per deployment and don't reuse them: `LIFEOS_SERVICE_KEY` is the only thing gating your (publicly reachable) Convex functions, and `LIFEOS_ENCRYPTION_KEY` decrypts every stored refresh token.
+
+## Contributing
+
+Setup is above; conventions and the pre-PR checks are in [CONTRIBUTING.md](CONTRIBUTING.md), with the full style guide in [AGENTS.md](AGENTS.md).
+
+Found a security issue? Please report it privately — see [SECURITY.md](SECURITY.md).
+
+## Licence
+
+[MIT](LICENSE).
