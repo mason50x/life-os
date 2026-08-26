@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { Accounts } from "../src/screens/Accounts.js";
 import { Keys } from "../src/screens/Keys.js";
 import { Layout } from "../src/ui/Layout.js";
+import { NAV_SPRITES, sprite } from "../src/ui/sprites.js";
 import type { LifeOsClient } from "../src/lib/api.js";
 import type { Account, ApiKey } from "../src/lib/types.js";
 
@@ -67,10 +68,16 @@ describe("Layout", () => {
     expect(lastFrame()).toContain("lifeos.you");
   });
 
-  it("collapses the rail to initials in a narrow terminal", () => {
+  it("collapses the rail to sprites in a narrow terminal", () => {
     const { lastFrame } = render(<Layout columns={60} rows={24} {...props} />);
     expect(lastFrame()).not.toContain("Accounts");
-    expect(lastFrame()).toContain("A");
+    expect(lastFrame()).toContain(NAV_SPRITES.accounts);
+  });
+
+  it("draws a sprite beside every label", () => {
+    const { lastFrame } = render(<Layout columns={120} rows={24} {...props} />);
+    expect(lastFrame()).toContain(`${NAV_SPRITES.accounts} Accounts`);
+    expect(lastFrame()).toContain(`${NAV_SPRITES.mcp} MCP`);
   });
 
   it("offers the update in the footer only when there is one", () => {
@@ -178,5 +185,20 @@ describe("Keys", () => {
     await settle();
     await settle();
     expect(lastFrame()).toContain(CREATED);
+  });
+});
+
+describe("sprite", () => {
+  it("folds each 2x2 pixel square into one block character", () => {
+    expect(sprite(["##", "##"])).toBe("█");
+    expect(sprite(["..", ".."])).toBe(" ");
+    expect(sprite(["#.", ".."])).toBe("▘");
+    expect(sprite([".#", "#."])).toBe("▞");
+    expect(sprite(["##..", "..##"])).toBe("▀▄");
+  });
+
+  it("gives every rail sprite the same width, so labels line up", () => {
+    const widths = new Set(Object.values(NAV_SPRITES).map((s) => [...s].length));
+    expect(widths).toEqual(new Set([3]));
   });
 });
