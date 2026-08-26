@@ -15,7 +15,7 @@
     "@lifeos/core": "workspace:*",
     "@lifeos/mcp": "workspace:*",
     "@modelcontextprotocol/sdk": "^1.12.0",
-    "@workos-inc/authkit-nextjs": "^2.5.0",
+    "@workos-inc/authkit-nextjs": "^4.3.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "convex": "^1.24.0",
