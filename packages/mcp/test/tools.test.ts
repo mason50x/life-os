@@ -243,3 +243,101 @@ describe("resolveAccount", () => {
     expect(body(result)).toContain("both@example.com");
   });
 });
+
+describe("calendar windows", () => {
+  /** A session whose calendar records the window it was handed. */
+  function recording() {
+    const seen: { from?: string; to?: string } = {};
+    const session: LifeOsSession = {
+      ...fakeSession(),
+      calendarFor: async () =>
+        ({
+          provider: "gmail",
+          email: "a@example.com",
+          listEvents: async (opts: { from: string; to: string }) => {
+            seen.from = opts.from;
+            seen.to = opts.to;
+            return [];
+          },
+        }) as unknown as CalendarProvider,
+    };
+    const listEvents = collectSpecs(async () => session).find((s) => s.name === "list_events")!;
+    return { seen, listEvents };
+  }
+
+  it("reads a bare `to` date as the whole of that day", async () => {
+    const { seen, listEvents } = recording();
+    await listEvents.handler({ from: "2026-08-27", to: "2026-08-27", max_results: 50 } as never, {});
+    expect(seen.from).toBe("2026-08-27T00:00:00.000Z");
+    expect(seen.to).toBe("2026-08-27T23:59:59.999Z");
+  });
+
+  it("leaves a full timestamp exactly where the caller put it", async () => {
+    const { seen, listEvents } = recording();
+    await listEvents.handler(
+      { from: "2026-08-27T09:00:00Z", to: "2026-08-27T17:00:00Z", max_results: 50 } as never,
+      {},
+    );
+    expect(seen.to).toBe("2026-08-27T17:00:00.000Z");
+  });
+});
+
+describe("update_event guest list", () => {
+  const existing = [
+    { email: "Ada@example.com", name: "Ada", response: "accepted" },
+    { email: "grace@example.com", response: "needsAction" },
+  ];
+
+  function recording() {
+    const sent: { attendees?: { email: string }[] } = {};
+    const session: LifeOsSession = {
+      ...fakeSession(),
+      calendarFor: async () =>
+        ({
+          provider: "gmail",
+          email: "a@example.com",
+          getEvent: async () => ({ id: "e1", attendees: existing }),
+          updateEvent: async (_c: string, _e: string, patch: { attendees?: { email: string }[] }) => {
+            sent.attendees = patch.attendees;
+            return { id: "e1", attendees: patch.attendees ?? existing };
+          },
+        }) as unknown as CalendarProvider,
+    };
+    const update = collectSpecs(async () => session).find((s) => s.name === "update_event")!;
+    return { sent, update };
+  }
+
+  const base = { calendar_id: "primary", event_id: "e1", scope: "this" as const };
+
+  it("keeps the guests it wasn't told about when adding one", async () => {
+    const { sent, update } = recording();
+    await update.handler({ ...base, add_attendees: [{ email: "linus@example.com" }] } as never, {});
+    expect(sent.attendees?.map((a) => a.email)).toEqual([
+      "Ada@example.com",
+      "grace@example.com",
+      "linus@example.com",
+    ]);
+  });
+
+  it("removes by address, case-insensitively, and leaves the rest", async () => {
+    const { sent, update } = recording();
+    await update.handler({ ...base, remove_attendees: ["ada@EXAMPLE.com"] } as never, {});
+    expect(sent.attendees?.map((a) => a.email)).toEqual(["grace@example.com"]);
+  });
+
+  it("still replaces the whole list when `attendees` is what was passed", async () => {
+    const { sent, update } = recording();
+    await update.handler({ ...base, attendees: [{ email: "solo@example.com" }] } as never, {});
+    expect(sent.attendees?.map((a) => a.email)).toEqual(["solo@example.com"]);
+  });
+
+  it("refuses to guess when both a replacement and an adjustment arrive", async () => {
+    const { update } = recording();
+    const result = await update.handler(
+      { ...base, attendees: [{ email: "solo@example.com" }], remove_attendees: ["ada@example.com"] } as never,
+      {},
+    );
+    expect(result.isError).toBe(true);
+    expect(body(result)).toContain("not both");
+  });
+});

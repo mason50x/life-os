@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { BusyBlock, CalendarEvent, EventTime } from "@lifeos/core";
+import type { BusyBlock, CalendarEvent, CalendarProvider, EventTime } from "@lifeos/core";
 import { explain, ok } from "../format";
 import { activeAccounts, resolveAccount } from "../session";
 import { CREATES, DESTRUCTIVE, Kit, READ_ONLY, REVERSIBLE, handled } from "./shared";
@@ -37,12 +37,14 @@ const windowShape = {
     .string()
     .optional()
     .describe(
-      "Start of the window, as YYYY-MM-DD or a full ISO timestamp. Defaults to now. Always state the window you mean rather than relying on the default when the user named a date.",
+      "Start of the window: a bare YYYY-MM-DD, or a full ISO timestamp. A bare date starts at 00:00 UTC — give a timestamp with an offset when the user's own zone matters. Defaults to now. Always state the window you mean rather than relying on that default when the user named a date.",
     ),
   to: z
     .string()
     .optional()
-    .describe("End of the window, same format. Defaults to seven days after `from`."),
+    .describe(
+      "End of the window, same format. A bare date covers the whole of that day, so one day is that same date in both `from` and `to`, and Monday to Friday is Monday here and Friday there — do not add a day. Defaults to seven days after `from`. Every result echoes back the `window` it actually used.",
+    ),
   calendar_ids: z
     .array(z.string())
     .optional()
@@ -68,7 +70,14 @@ const timeShape = z
   })
   .describe("A point in time: either date_time (timed) or date (all-day), never both.");
 
+const attendee = z.object({
+  email: z.string(),
+  name: z.string().optional(),
+  optional: z.boolean().optional(),
+});
+
 type TimeArg = { date_time?: string; date?: string; time_zone?: string };
+type AttendeeArg = { email: string; name?: string; optional?: boolean };
 
 function toEventTime(value: TimeArg, what: string): EventTime {
   if (value.date) return { date: value.date };
@@ -85,11 +94,55 @@ function resolveWindow(from?: string, to?: string): { from: string; to: string }
   return { from: start.toISOString(), to: end.toISOString() };
 }
 
-/** A bare YYYY-MM-DD means the whole day, so `to` runs to its end. */
+/**
+ * A bare YYYY-MM-DD is a day, not an instant, so `to` runs to the end of it:
+ * "to: 2026-08-27" means everything on the 27th. Inclusive rather than
+ * exclusive because it is the reading that needs no arithmetic — a model that
+ * has to add a day to ask about one day is a model that will sometimes forget,
+ * and a window silently short by a day returns nothing rather than too much.
+ */
 function dateOrTimestamp(value: string, endOfDay = false): string {
   return /^\d{4}-\d{2}-\d{2}$/.test(value)
     ? `${value}T${endOfDay ? "23:59:59.999" : "00:00:00.000"}Z`
     : value;
+}
+
+/**
+ * A guest list is usually being nudged rather than rewritten, and `attendees`
+ * alone rewrites it — everyone the model didn't think to repeat gets a
+ * cancellation. add/remove read the current list first and hand back the whole
+ * one, the way modify_labels does for a message's labels.
+ */
+async function nextAttendees(
+  calendar: CalendarProvider,
+  args: {
+    calendar_id: string;
+    event_id: string;
+    attendees?: AttendeeArg[];
+    add_attendees?: AttendeeArg[];
+    remove_attendees?: string[];
+  },
+): Promise<AttendeeArg[] | undefined> {
+  const add = args.add_attendees ?? [];
+  const remove = args.remove_attendees ?? [];
+  if (add.length === 0 && remove.length === 0) return args.attendees;
+  if (args.attendees) {
+    throw new Error(
+      "Pass either `attendees` to replace the whole guest list, or add_attendees/remove_attendees to adjust it — not both.",
+    );
+  }
+  // Anyone being re-added is dropped from the old list first, so their new
+  // `optional` flag wins instead of colliding with the existing entry.
+  const drop = new Set([...remove, ...add.map((a) => a.email)].map((e) => e.toLowerCase()));
+  const current = (await calendar.getEvent(args.calendar_id, args.event_id)).attendees ?? [];
+  const kept = current
+    .filter((a) => !drop.has(a.email.toLowerCase()))
+    .map(({ email, name, optional }) => ({
+      email,
+      ...(name !== undefined ? { name } : {}),
+      ...(optional !== undefined ? { optional } : {}),
+    }));
+  return [...kept, ...add];
 }
 
 function startMs(event: CalendarEvent): number {
@@ -235,13 +288,7 @@ export function registerCalendarTools({ register, session }: Kit) {
         description: z.string().optional(),
         location: z.string().optional().describe("A place, or a meeting link."),
         attendees: z
-          .array(
-            z.object({
-              email: z.string(),
-              name: z.string().optional(),
-              optional: z.boolean().optional(),
-            }),
-          )
+          .array(attendee)
           .optional()
           .describe("People to invite. Each one is emailed an invitation immediately."),
         recurrence: z
@@ -274,7 +321,7 @@ export function registerCalendarTools({ register, session }: Kit) {
           end: TimeArg;
           description?: string;
           location?: string;
-          attendees?: { email: string; name?: string; optional?: boolean }[];
+          attendees?: AttendeeArg[];
           recurrence?: string[];
           reminders?: number[];
           add_conferencing: boolean;
@@ -315,15 +362,19 @@ export function registerCalendarTools({ register, session }: Kit) {
         description: z.string().optional(),
         location: z.string().optional(),
         attendees: z
-          .array(
-            z.object({
-              email: z.string(),
-              name: z.string().optional(),
-              optional: z.boolean().optional(),
-            }),
-          )
+          .array(attendee)
           .optional()
-          .describe("Replaces the whole guest list. Include everyone who should stay on it."),
+          .describe(
+            "Replaces the whole guest list: anyone you leave out is uninvited and told the event is cancelled. To change who is coming without restating everyone, use add_attendees and remove_attendees instead.",
+          ),
+        add_attendees: z
+          .array(attendee)
+          .optional()
+          .describe("Invite these people as well, leaving the existing guests alone."),
+        remove_attendees: z
+          .array(z.string())
+          .optional()
+          .describe("Uninvite these email addresses, leaving the rest of the guest list alone."),
         recurrence: z.array(z.string()).optional(),
         reminders: z.array(z.number().int().min(0)).optional(),
       },
@@ -344,14 +395,18 @@ export function registerCalendarTools({ register, session }: Kit) {
           end?: TimeArg;
           description?: string;
           location?: string;
-          attendees?: { email: string; name?: string; optional?: boolean }[];
+          attendees?: AttendeeArg[];
+          add_attendees?: AttendeeArg[];
+          remove_attendees?: string[];
           recurrence?: string[];
           reminders?: number[];
         },
         s,
       ) => {
         const email = await resolveAccount(s, args.account, "calendar");
-        const event = await (await s.calendarFor(email)).updateEvent(
+        const calendar = await s.calendarFor(email);
+        const attendees = await nextAttendees(calendar, args);
+        const event = await calendar.updateEvent(
           args.calendar_id,
           args.event_id,
           {
@@ -360,7 +415,7 @@ export function registerCalendarTools({ register, session }: Kit) {
             ...(args.location !== undefined ? { location: args.location } : {}),
             ...(args.start ? { start: toEventTime(args.start, "start") } : {}),
             ...(args.end ? { end: toEventTime(args.end, "end") } : {}),
-            ...(args.attendees ? { attendees: args.attendees } : {}),
+            ...(attendees ? { attendees } : {}),
             ...(args.recurrence ? { recurrence: args.recurrence } : {}),
             ...(args.reminders ? { reminders: args.reminders } : {}),
           },
