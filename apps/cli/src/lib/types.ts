@@ -13,6 +13,12 @@ export interface Account {
   status: AccountStatus;
   /** Absent on a server that predates calendar support; read as mail-only. */
   capabilities?: Capability[];
+  /**
+   * The account whose calendar this one shares, when it isn't its own. iCloud
+   * alias and custom-domain addresses are separate inboxes over one Apple
+   * sign-in, and that sign-in has one set of calendars.
+   */
+  calendarOf?: string;
   connectedAt: number;
 }
 
@@ -103,10 +109,17 @@ export function accountNames(accounts: Pick<Account, "email" | "nickname">[]): M
 }
 
 /** "Mail · Calendar" — what one account is actually good for. */
-export function capabilityLabel(account: Pick<Account, "capabilities">): string {
+export function capabilityLabel(
+  account: Pick<Account, "capabilities" | "calendarOf">,
+): string {
   const capabilities = account.capabilities?.length ? account.capabilities : ["email"];
-  return (["email", "calendar"] as const)
-    .filter((c) => capabilities.includes(c))
-    .map((c) => (c === "email" ? "Mail" : "Calendar"))
-    .join(" · ");
+  const labels: string[] = (["email", "calendar"] as const)
+    .filter((c) => capabilities.includes(c) && !(c === "calendar" && account.calendarOf))
+    .map((c) => (c === "email" ? "Mail" : "Calendar"));
+  // An alias has a calendar, but it's the one its sibling shows — naming the
+  // sibling says that without counting the same calendar twice.
+  if (account.calendarOf && capabilities.includes("calendar")) {
+    labels.push(`calendar via ${defaultAccountName(account.calendarOf)}`);
+  }
+  return labels.join(" · ");
 }

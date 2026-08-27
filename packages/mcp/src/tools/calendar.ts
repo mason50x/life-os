@@ -205,7 +205,7 @@ export function registerCalendarTools({ register, session }: Kit) {
         ...(results.length === 0 && errors.length === 0
           ? {
               next_step:
-                "No calendars are connected. Google and Apple accounts bring calendar along with mail — if an inbox was connected before calendar support existed, reconnecting it in the LifeOS dashboard is all it takes.",
+                'No calendars are connected. Google and Apple accounts bring calendar along with mail — if an inbox was connected before calendar support existed, one click on "Enable calendar" in the LifeOS dashboard adds it.',
             }
           : {}),
       });

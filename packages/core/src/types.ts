@@ -21,6 +21,14 @@ export interface ConnectedAccount {
   status: "active" | "needs_reauth" | "disconnected";
   /** Never empty: an account with nothing usable would not be stored. */
   capabilities: Capability[];
+  /**
+   * The account this one's calendar actually lives on, when it isn't its own.
+   * iCloud custom-domain and alias addresses are separate mail accounts over a
+   * single Apple sign-in, and that sign-in has exactly one set of calendars —
+   * so one of them stands for it and the rest point at that one. Absent means
+   * the account speaks for its own calendar, which is every other case.
+   */
+  calendarOf?: string;
   connectedAt: number;
 }
 
@@ -60,6 +68,57 @@ export function accountNames(accounts: { email: string; nickname?: string }[]): 
       return [a.email, ambiguous ? a.email : name];
     }),
   );
+}
+
+/**
+ * One account per set of calendars: which account stands for a shared calendar,
+ * for each of the accounts that doesn't.
+ *
+ * Mail is per address — three iCloud custom-domain addresses are three inboxes
+ * a person really does send from separately. Calendars aren't: all three sign
+ * in as the same Apple account and see the same calendars, so listing them per
+ * address would report every calendar and every event three times, and asking
+ * which of the three to put a meeting on would be a question with no answer.
+ *
+ * The owner is the sign-in address itself when it's connected, and otherwise
+ * the oldest connected sibling. An account that can't be used loses the job to
+ * one that can, so a reconnect-needed row never blacks out the calendar for
+ * addresses that still work. Returns email → owner's email, leaving owners out.
+ */
+export function calendarOwners(
+  accounts: {
+    provider: Provider;
+    email: string;
+    /** The address that signs in, when it isn't `email`. */
+    loginEmail?: string;
+    status?: ConnectedAccount["status"];
+    connectedAt?: number;
+  }[],
+): Map<string, string> {
+  const groups = new Map<string, typeof accounts>();
+  for (const a of accounts) {
+    const key = `${a.provider}:${(a.loginEmail ?? a.email).toLowerCase()}`;
+    groups.set(key, [...(groups.get(key) ?? []), a]);
+  }
+
+  const owners = new Map<string, string>();
+  for (const [key, group] of groups) {
+    if (group.length < 2) continue;
+    const signIn = key.slice(key.indexOf(":") + 1);
+    const rank = (a: (typeof group)[number]) => [
+      a.status && a.status !== "active" ? 1 : 0,
+      a.email.toLowerCase() === signIn ? 0 : 1,
+      a.connectedAt ?? 0,
+    ];
+    const [owner, ...rest] = [...group].sort((x, y) => {
+      const [a, b] = [rank(x), rank(y)];
+      for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return a[i] - b[i];
+      // Nothing left to separate them: the address, so the choice is stable.
+      return x.email.localeCompare(y.email);
+    });
+    for (const a of rest) owners.set(a.email, owner.email);
+  }
+  return owners;
 }
 
 export interface EmailAddress {

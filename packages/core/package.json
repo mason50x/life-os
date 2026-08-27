@@ -7,6 +7,7 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
+    "./accounts": "./src/types.ts",
     "./ical": "./src/ical.ts",
     "./icloud": "./src/providers/icloud.ts",
     "./icloud-calendar": "./src/providers/icloudCalendar.ts"

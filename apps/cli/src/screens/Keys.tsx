@@ -16,7 +16,7 @@ type Mode =
   | { name: "revealed"; key: string }
   | { name: "confirm"; key: ApiKey };
 
-export function Keys({ client, focused, height, onChanged }: ScreenProps) {
+export function Keys({ client, live, focused, height, onChanged }: ScreenProps) {
   const [keys, setKeys] = useState<ApiKey[] | null>(null);
   const [index, setIndex] = useState(0);
   const [mode, setMode] = useState<Mode>({ name: "list" });
@@ -36,6 +36,17 @@ export function Keys({ client, focused, height, onChanged }: ScreenProps) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Live: keys minted or revoked anywhere — the dashboard, another terminal —
+  // appear as they happen, and lastUsedAt ticks over while a script runs.
+  // With live null the HTTP load above is the whole story, as before.
+  useEffect(() => {
+    if (!live) return;
+    return live.onKeys((next) => {
+      setKeys(next);
+      setIndex((i) => Math.min(i, Math.max(0, next.length - 1)));
+    });
+  }, [live]);
 
   const create = useCallback(
     async (name: string) => {

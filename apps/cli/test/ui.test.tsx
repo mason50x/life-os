@@ -4,6 +4,7 @@ import { Accounts } from "../src/screens/Accounts.js";
 import { Keys } from "../src/screens/Keys.js";
 import { Layout } from "../src/ui/Layout.js";
 import type { LifeOsClient } from "../src/lib/api.js";
+import type { LiveClient } from "../src/lib/live.js";
 import type { Account, ApiKey } from "../src/lib/types.js";
 
 const CREATED = "lifeos_shownonce123";
@@ -47,6 +48,32 @@ function stubClient(overrides: Partial<Record<keyof LifeOsClient, unknown>> = {}
 
 /** Let queued microtasks and the screens' initial loads settle before asserting. */
 const settle = () => new Promise((r) => setTimeout(r, 30));
+
+/** A LiveClient the test drives by hand: push a list, the screen re-renders. */
+function stubLive() {
+  let accountsCb: ((accounts: Account[]) => void) | null = null;
+  let keysCb: ((keys: ApiKey[]) => void) | null = null;
+  const live: LiveClient = {
+    onAccounts: (cb) => {
+      accountsCb = cb;
+      return () => {
+        accountsCb = null;
+      };
+    },
+    onKeys: (cb) => {
+      keysCb = cb;
+      return () => {
+        keysCb = null;
+      };
+    },
+    close: async () => {},
+  };
+  return {
+    live,
+    pushAccounts: (accounts: Account[]) => accountsCb?.(accounts),
+    pushKeys: (keys: ApiKey[]) => keysCb?.(keys),
+  };
+}
 
 describe("Layout", () => {
   const props = {
@@ -173,6 +200,22 @@ describe("Accounts", () => {
     await settle();
     expect(lastFrame()).toContain("Nothing connected yet");
   });
+
+  it("follows the live subscription without a keypress", async () => {
+    const feed = stubLive();
+    const { lastFrame } = render(
+      <Accounts client={stubClient()} live={feed.live} focused height={20} />,
+    );
+    await settle();
+    expect(lastFrame()).not.toContain("three@icloud.com");
+    // Someone connects an inbox in the dashboard; Convex pushes the new list.
+    feed.pushAccounts([
+      ...ACCOUNTS,
+      { id: "a3", userId: "u", provider: "icloud", email: "three@icloud.com", status: "active", connectedAt: Date.parse("2026-08-27T12:00:00Z") },
+    ]);
+    await settle();
+    expect(lastFrame()).toContain("three@icloud.com");
+  });
 });
 
 describe("Keys", () => {
@@ -199,6 +242,18 @@ describe("Keys", () => {
     await settle();
     expect(lastFrame()).toContain(created);
     expect(lastFrame()).toContain("no way to show this again");
+  });
+
+  it("follows the live subscription when a key is revoked elsewhere", async () => {
+    const feed = stubLive();
+    const { lastFrame } = render(
+      <Keys client={stubClient()} live={feed.live} focused height={20} />,
+    );
+    await settle();
+    expect(lastFrame()).toContain("CI");
+    feed.pushKeys([]);
+    await settle();
+    expect(lastFrame()).toContain("you probably don't need one");
   });
 
   // Regression: the shell used to remount every screen whenever one reported a

@@ -254,6 +254,58 @@ describe("resolveAccount", () => {
   });
 });
 
+describe("one calendar per sign-in", () => {
+  // Three iCloud addresses over one Apple sign-in: three inboxes, one set of
+  // calendars. mason@ owns it; the other two point at it.
+  const alias = (email: string, over: Partial<ConnectedAccount> = {}) =>
+    account({ id: email, provider: "icloud", email, ...over });
+  const shared = () =>
+    collectSpecs(async () =>
+      fakeSession([
+        alias("mason@icloud.com"),
+        alias("mason@cognify.design", { calendarOf: "mason@icloud.com" }),
+        alias("support@picka.college", { calendarOf: "mason@icloud.com" }),
+      ]),
+    );
+
+  it("lists the calendars once, not once per address", async () => {
+    const listCalendars = shared().find((s) => s.name === "list_calendars")!;
+    const result = JSON.parse(body(await listCalendars.handler({} as never, {}))) as {
+      searched: string[];
+      calendars: unknown[];
+    };
+    expect(result.searched).toEqual(["mason@icloud.com"]);
+    expect(result.calendars).toHaveLength(1);
+  });
+
+  it("answers on the owner when asked about an alias, rather than refusing", async () => {
+    const listCalendars = shared().find((s) => s.name === "list_calendars")!;
+    const result = JSON.parse(
+      body(await listCalendars.handler({ account: "support@picka.college" } as never, {})),
+    ) as { searched: string[] };
+    expect(result.searched).toEqual(["mason@icloud.com"]);
+  });
+
+  it("keeps every address its own inbox — mail is not shared", async () => {
+    const searchEmails = shared().find((s) => s.name === "search_emails")!;
+    const result = JSON.parse(body(await searchEmails.handler({ query: "hi" } as never, {}))) as {
+      searched: string[];
+    };
+    expect(result.searched).toHaveLength(3);
+  });
+
+  it("says which account an address shares its calendar with", async () => {
+    const listAccounts = shared().find((s) => s.name === "list_accounts")!;
+    const result = JSON.parse(body(await listAccounts.handler({} as never, {}))) as {
+      accounts: { email: string; shares_calendar_with?: string }[];
+    };
+    expect(result.accounts.find((a) => a.email === "mason@icloud.com")?.shares_calendar_with)
+      .toBeUndefined();
+    expect(result.accounts.find((a) => a.email === "support@picka.college")?.shares_calendar_with)
+      .toBe("mason@icloud.com");
+  });
+});
+
 describe("calendar windows", () => {
   /** A session whose calendar records the window it was handed. */
   function recording() {

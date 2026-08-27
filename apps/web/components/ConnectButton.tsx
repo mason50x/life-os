@@ -29,6 +29,9 @@ function AccountAvatars({ compact }: { compact: boolean }) {
 /**
  * The primary call to action. `compact` is the header's copy of it: one size
  * down, so the same object reads as the same object once it docks up there.
+ * On a phone that copy also drops "my Accounts" — the avatar stack already
+ * says what is being connected, and the full label plus "Sign in" plus the
+ * lockup is more than a 320px bar holds.
  *
  * The leading well is sized to the stack — each avatar overlaps the one before
  * it by 6px, so three of them come to `3w - 12`.
@@ -48,7 +51,8 @@ export function ConnectButton({
       leading={<AccountAvatars compact={compact} />}
       leadingWidth={compact ? "mr-2 w-12" : "mr-2.5 w-15"}
     >
-      Connect my Accounts
+      Connect
+      <span className={compact ? "max-sm:hidden" : undefined}>&nbsp;my Accounts</span>
     </PendingButton>
   );
 }

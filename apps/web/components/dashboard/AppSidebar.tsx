@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { AddAccountMenu } from "./AddAccountMenu";
+import { useLiveAccounts } from "./live";
 import { ProviderMark, providerCapabilities } from "./ProviderMark";
 
 export interface SidebarAccount {
@@ -50,6 +51,8 @@ export interface SidebarAccount {
   provider: Provider;
   status: "active" | "needs_reauth" | "disconnected";
   capabilities: Capability[];
+  /** Set when this address's calendar is another account's — see ConnectedAccount. */
+  calendarOf?: string;
 }
 
 export interface SidebarUser {
@@ -75,11 +78,12 @@ export interface SidebarUser {
  */
 export function AppSidebar({
   user,
-  accounts,
+  accounts: initialAccounts,
   defaultCollapsed = false,
   signOut,
 }: {
   user: SidebarUser;
+  /** Server-rendered snapshot; the live subscription takes over once it answers. */
   accounts: SidebarAccount[];
   defaultCollapsed?: boolean;
   signOut: () => Promise<void>;
@@ -88,13 +92,23 @@ export function AppSidebar({
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const [emailOpen, setEmailOpen] = useState(true);
 
-  const calendars = accounts.filter((a) => a.capabilities.includes("calendar"));
-  // Mail-only accounts on a provider that also does calendar: one reconnect
-  // away, and the only reason the section would be shorter than the one above.
+  // Live: a connect finishing in another tab, a rename from the CLI, a revoked
+  // grant — the rail follows without a navigation.
+  const accounts: SidebarAccount[] = useLiveAccounts(initialAccounts);
+
+  // The calendar list is by connection, not by address: iCloud aliases are
+  // three inboxes above and one Apple calendar here, so only the account that
+  // stands for a shared calendar is listed — with a count of who else is on it.
+  const calendars = accounts.filter((a) => a.capabilities.includes("calendar") && !a.calendarOf);
+  const sharing = (owner: SidebarAccount) =>
+    accounts.filter((a) => a.calendarOf === owner.email).length;
+  // Mail-only accounts on a provider that also does calendar: one click away,
+  // and the only reason the section would be shorter than the one above.
   const pending = accounts.filter(
     (a) =>
       a.status === "active" &&
       !a.capabilities.includes("calendar") &&
+      !a.calendarOf &&
       providerCapabilities[a.provider].includes("calendar"),
   );
   const [calendarOpen, setCalendarOpen] = useState(calendars.length > 0);
@@ -226,23 +240,39 @@ export function AppSidebar({
             </span>
           }
         >
-          {calendars.map((a) => (
-            <Link
-              key={a.id}
-              href={`/dashboard#account-${a.id}`}
-              title={a.email}
-              className="flex h-8 items-center gap-2.5 px-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              <ProviderMark provider={a.provider} />
-              <span className="truncate">{a.email}</span>
-              {a.status !== "active" && (
-                <span
-                  aria-label="Needs re-auth"
-                  className="ml-auto size-1.5 shrink-0 rounded-full bg-destructive"
-                />
-              )}
-            </Link>
-          ))}
+          {calendars.map((a) => {
+            const others = sharing(a);
+            return (
+              <Link
+                key={a.id}
+                href={`/dashboard#account-${a.id}`}
+                title={
+                  others
+                    ? `${a.email} — one calendar, shared with ${others} more ${
+                        others === 1 ? "address" : "addresses"
+                      } on this sign-in`
+                    : a.email
+                }
+                className="flex h-8 items-center gap-2.5 px-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              >
+                <ProviderMark provider={a.provider} />
+                <span className="truncate">{a.email}</span>
+                {/* One sign-in, several send-as addresses: say so rather than
+                    listing a calendar that doesn't exist separately. */}
+                {others > 0 && (
+                  <span className="shrink-0 text-xs tabular-nums text-muted-foreground/70">
+                    +{others}
+                  </span>
+                )}
+                {a.status !== "active" && (
+                  <span
+                    aria-label="Needs re-auth"
+                    className="ml-auto size-1.5 shrink-0 rounded-full bg-destructive"
+                  />
+                )}
+              </Link>
+            );
+          })}
 
           {/* An account linked before calendar existed holds a mail-only grant,
               though usually a credential that reaches the calendar anyway —

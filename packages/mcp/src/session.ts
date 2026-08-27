@@ -43,6 +43,20 @@ export function surfacesForAccounts(accounts: ConnectedAccount[]): Surface[] {
   );
 }
 
+/**
+ * Whether this account is the one to act on for a capability.
+ *
+ * Every account with mail is its own inbox. Calendars aren't like that: iCloud
+ * alias and custom-domain addresses sign in as one Apple account and see one
+ * set of calendars, so exactly one of them stands for it here — otherwise the
+ * same calendar comes back once per address, every event is reported two or
+ * three times over, and "which account?" becomes a question with no answer.
+ */
+function serves(account: ConnectedAccount, capability: Capability): boolean {
+  if (account.status !== "active" || !account.capabilities.includes(capability)) return false;
+  return capability !== "calendar" || !account.calendarOf;
+}
+
 export class ToolError extends Error {}
 
 /** What the user should be told to do when nothing can serve a capability. */
@@ -69,9 +83,7 @@ export async function resolveAccount(
   capability: Capability = "email",
 ): Promise<string> {
   const accounts = await session.listAccounts();
-  const usable = accounts.filter(
-    (a) => a.status === "active" && a.capabilities.includes(capability),
-  );
+  const usable = accounts.filter((a) => serves(a, capability));
   if (requested) {
     // Address first, then the name the user knows the account by — "personal"
     // is what they say out loud, and it's what list_accounts hands the model.
@@ -91,6 +103,13 @@ export async function resolveAccount(
         `Account ${match.email} is ${match.status.replace("_", " ")} and can't be used until the ` +
           `user reconnects it in the LifeOS dashboard.`,
       );
+    }
+    // An alias asked about the calendar has one — the same one its sibling
+    // owns. Answer there rather than refusing over a distinction the user
+    // doesn't have: to them it's one Apple account either way.
+    if (capability === "calendar" && match.calendarOf) {
+      const owner = accounts.find((a) => a.email === match.calendarOf);
+      if (owner && serves(owner, capability)) return owner.email;
     }
     if (!match.capabilities.includes(capability)) {
       throw new ToolError(
@@ -118,7 +137,5 @@ export async function activeAccounts(
   session: LifeOsSession,
   capability: Capability = "email",
 ): Promise<string[]> {
-  return (await session.listAccounts())
-    .filter((a) => a.status === "active" && a.capabilities.includes(capability))
-    .map((a) => a.email);
+  return (await session.listAccounts()).filter((a) => serves(a, capability)).map((a) => a.email);
 }

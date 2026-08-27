@@ -33,18 +33,24 @@ export const connectRoutes: { provider: Provider; href: string }[] = [
 const capabilityIcon = { email: EnvelopeIcon, calendar: CalendarDaysIcon } as const;
 export const capabilityLabel = { email: "Mail", calendar: "Calendar" } as const;
 
-/** What one connected account is good for, at a glance. */
+/**
+ * What one connected account is good for, at a glance. `calendarOf` names the
+ * account whose calendar this one shares — an iCloud alias has a calendar, but
+ * it's the same one its sibling shows, and badging both would count it twice.
+ */
 export function CapabilityBadges({
   capabilities,
+  calendarOf,
   className,
 }: {
   capabilities: Capability[];
+  calendarOf?: string;
   className?: string;
 }) {
   return (
     <span className={cn("flex items-center gap-2", className)}>
       {(["email", "calendar"] as const)
-        .filter((c) => capabilities.includes(c))
+        .filter((c) => capabilities.includes(c) && !(c === "calendar" && calendarOf))
         .map((c) => {
           const Icon = capabilityIcon[c];
           return (

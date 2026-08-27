@@ -22,6 +22,24 @@ export const create = mutation({
   },
 });
 
+/**
+ * The signed-in user's keys, live — the JWT-authenticated twin of
+ * `listByUser`, for clients subscribing directly (see accounts.mine). Same
+ * projection: the hash never leaves the database. Null until signed in.
+ */
+export const mine = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return null;
+    const keys = await ctx.db
+      .query("apiKeys")
+      .withIndex("by_user", (q) => q.eq("userId", identity.subject))
+      .collect();
+    return keys.map(({ hash: _hash, ...safe }) => safe);
+  },
+});
+
 export const listByUser = query({
   args: { serviceKey: v.string(), userId: v.string() },
   handler: async (ctx, args) => {

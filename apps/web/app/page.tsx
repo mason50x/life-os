@@ -16,7 +16,6 @@ import { BrandMenu } from "@/components/BrandMenu";
 import { Logo } from "@/components/Logo";
 import { FlowDiagram } from "@/components/FlowDiagram";
 import { HeaderConnectCta } from "@/components/HeaderConnectCta";
-import { MobileNav } from "@/components/MobileNav";
 import { McpReaderTrigger, ReaderShell } from "@/components/McpReader";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
@@ -101,11 +100,15 @@ export default async function Home() {
               collapses to nothing at the top of the page rather than leaving a
               gap behind. */}
           <div className="flex items-center">
-            <PendingButton href="/login" variant="ghost" size="default" className="max-sm:hidden">
+            <PendingButton
+              href="/login"
+              variant="ghost"
+              size="default"
+              className="max-sm:h-11"
+            >
               Sign in
             </PendingButton>
             <HeaderConnectCta watch="hero-cta" />
-            <MobileNav className="sm:hidden" />
           </div>
         </nav>
       </header>

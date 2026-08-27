@@ -43,6 +43,7 @@
     "@types/node": "^22.10.0",
     "@types/react": "^19.2.0",
     "commander": "^13.1.0",
+    "convex": "^1.24.0",
     "ink": "^6.8.0",
     "ink-testing-library": "^4.0.0",
     "ink-text-input": "^6.0.0",

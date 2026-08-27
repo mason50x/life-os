@@ -31,7 +31,7 @@ const PROVIDERS: Provider[] = ["gmail", "outlook", "icloud"];
 /** Give up waiting on the browser at the same point the handoff token expires. */
 const CONNECT_TIMEOUT_MS = 10 * 60 * 1000;
 
-export function Accounts({ client, focused, height, onChanged }: ScreenProps) {
+export function Accounts({ client, live, focused, height, onChanged }: ScreenProps) {
   const [accounts, setAccounts] = useState<Account[] | null>(null);
   const [index, setIndex] = useState(0);
   const [mode, setMode] = useState<Mode>({ name: "list" });
@@ -56,6 +56,18 @@ export function Accounts({ client, focused, height, onChanged }: ScreenProps) {
   useEffect(() => {
     void load();
   }, [load]);
+
+  // Live: the same list the dashboard subscribes to, over the instance's
+  // Convex deployment — a rename in the browser lands here as it happens. The
+  // HTTP load above still runs first, so the screen is never blank while the
+  // WebSocket authenticates, and it is the whole story when live is null.
+  useEffect(() => {
+    if (!live) return;
+    return live.onAccounts((next) => {
+      setAccounts(next);
+      setIndex((i) => Math.min(i, Math.max(0, next.length - 1)));
+    });
+  }, [live]);
 
   const stopWatching = useCallback(() => {
     if (watching.current) clearInterval(watching.current);
@@ -205,6 +217,9 @@ export function Accounts({ client, focused, height, onChanged }: ScreenProps) {
     !!selected &&
     selected.status === "active" &&
     !selected.capabilities?.includes("calendar") &&
+    // An address whose calendar lives on a sibling has nothing of its own to
+    // turn on — enabling happens once, on the account that owns it.
+    !selected.calendarOf &&
     PROVIDER_CAPABILITIES[selected.provider].includes("calendar");
 
   useInput(
@@ -475,6 +490,7 @@ export function Accounts({ client, focused, height, onChanged }: ScreenProps) {
                 is one key and no typing — see addCalendar. */}
             {account.status === "active" &&
               !account.capabilities?.includes("calendar") &&
+              !account.calendarOf &&
               PROVIDER_CAPABILITIES[account.provider].includes("calendar") && (
                 <Box paddingLeft={2}>
                   <Hint>press e to add calendar — no password, it reuses the sign-in you gave</Hint>

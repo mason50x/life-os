@@ -1,6 +1,46 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+// The account types and their pure helpers, with none of the provider clients
+// behind the package's main entry — the same rules the Next.js side applies.
+import { calendarOwners } from "@lifeos/core/accounts";
 import { assertServiceKey } from "./guard";
+
+/**
+ * The signed-in user's accounts, live. Authenticated by the caller's AuthKit
+ * JWT (ctx.auth) rather than the service key, so the dashboard and the CLI can
+ * subscribe to it directly — which is exactly why it projects the row down to
+ * what a browser may hold and never returns encrypted tokens, scope strings,
+ * or the raw document. Null until someone is signed in.
+ */
+export const mine = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) return null;
+    const docs = await ctx.db
+      .query("emailAccounts")
+      .withIndex("by_user", (q) => q.eq("userId", identity.subject))
+      .collect();
+    // Addresses over one sign-in share one set of calendars; this says which
+    // of them speaks for it, so the live list counts a calendar once — the
+    // same call lib/accounts.ts makes for the server-rendered list.
+    const owners = calendarOwners(docs);
+    return docs.map((d) => ({
+      id: d._id,
+      userId: d.userId,
+      provider: d.provider,
+      email: d.email,
+      ...(d.displayName !== undefined ? { displayName: d.displayName } : {}),
+      ...(d.nickname !== undefined ? { nickname: d.nickname } : {}),
+      status: d.status,
+      // Absent capabilities mean a row written before calendar existed, which
+      // is mail — the same reading lib/accounts.ts gives it.
+      capabilities: d.capabilities?.length ? d.capabilities : ["email" as const],
+      ...(owners.has(d.email) ? { calendarOf: owners.get(d.email)! } : {}),
+      connectedAt: d.connectedAt,
+    }));
+  },
+});
 
 export const listByUser = query({
   args: { serviceKey: v.string(), userId: v.string() },

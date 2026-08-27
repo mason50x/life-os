@@ -13,6 +13,7 @@ import { Mcp, MCP_KEYS } from "./screens/Mcp.js";
 import { Settings, SETTINGS_KEYS } from "./screens/Settings.js";
 import { LifeOsClient } from "./lib/api.js";
 import { currentCredential, signOut, type Identity } from "./lib/auth.js";
+import { connectLive, type LiveClient } from "./lib/live.js";
 import { checkForUpdate, runUpdate } from "./lib/update.js";
 
 const NAV = [
@@ -58,6 +59,27 @@ export function App({ apiUrl, version }: { apiUrl: string; version: string }) {
   useEffect(() => {
     void refreshIdentity();
   }, [refreshIdentity, reloadKey]);
+
+  // One WebSocket for the whole app, opened once a session exists and closed
+  // with it. Null (API-key sign-in, an older server, no global WebSocket)
+  // means every screen behaves exactly as it did before live queries existed.
+  const [live, setLive] = useState<LiveClient | null>(null);
+  useEffect(() => {
+    if (!signedIn) return;
+    let open: LiveClient | null = null;
+    let cancelled = false;
+    void connectLive(apiUrl).then((handle) => {
+      if (!handle) return;
+      if (cancelled) return void handle.close();
+      open = handle;
+      setLive(handle);
+    });
+    return () => {
+      cancelled = true;
+      setLive(null);
+      void open?.close();
+    };
+  }, [apiUrl, signedIn]);
 
   useEffect(() => {
     void checkForUpdate(version).then(setLatest);
@@ -119,6 +141,7 @@ export function App({ apiUrl, version }: { apiUrl: string; version: string }) {
   const contentHeight = Math.max(4, rows - CHROME_ROWS);
   const screenProps = {
     client,
+    live,
     focused: !navFocused && !helpOpen,
     height: contentHeight,
     onChanged,

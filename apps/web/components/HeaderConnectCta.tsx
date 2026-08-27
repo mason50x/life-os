@@ -16,37 +16,38 @@ import { cn } from "@/lib/utils";
  * opens the space it needs instead of jumping "Sign in" sideways. The measure
  * is what makes the transition land exactly on the content: a `max-width`
  * guess would finish early and stall. The clip margin leaves the focus ring
- * room to sit outside the box, but only once it is open — a clip margin on a
- * zero-width box still counts toward the document's scroll width, and with the
- * page column touching both edges that is 8px of sideways scroll on a phone.
+ * room to sit outside the box once it is open.
  *
- * Below `sm` there is no room to dock into — the hamburger carries the CTA
- * there — so it stays collapsed. Collapsed, not `display: none`: the provider
- * marks share one set of gradient ids across every copy on the page, and a
- * duplicate id resolves to the first in document order. Hide this one and it
- * is still what the hero's and the menu's copies paint from, so all three
- * come out blank.
+ * Narrower than `minWidth` the bar can't hold the lockup, "Sign in" and the
+ * button at once, so the CTA stays collapsed and the hero's copy is the only
+ * one. Collapsed, not `display: none` — the provider marks share one set of
+ * gradient ids across every copy on the page and a duplicate id resolves to
+ * the first in document order, so hiding this one blanks the marks in the
+ * hero and the flow diagram too.
  */
 export function HeaderConnectCta({
   watch,
   headerHeight = 64,
+  minWidth = "22.5rem",
 }: {
   /** Element id of the hero button to shadow. */
   watch: string;
   headerHeight?: number;
+  /** Narrowest viewport the docked button is allowed to take up room in. */
+  minWidth?: string;
 }) {
   const [docked, setDocked] = useState(false);
-  const [dockable, setDockable] = useState(true);
+  const [roomy, setRoomy] = useState(true);
   const [width, setWidth] = useState(0);
   const content = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const wide = window.matchMedia("(min-width: 40rem)");
-    const sync = () => setDockable(wide.matches);
+    const query = window.matchMedia(`(min-width: ${minWidth})`);
+    const sync = () => setRoomy(query.matches);
     sync();
-    wide.addEventListener("change", sync);
-    return () => wide.removeEventListener("change", sync);
-  }, []);
+    query.addEventListener("change", sync);
+    return () => query.removeEventListener("change", sync);
+  }, [minWidth]);
 
   useEffect(() => {
     const target = document.getElementById(watch);
@@ -67,15 +68,12 @@ export function HeaderConnectCta({
     return () => observer.disconnect();
   }, []);
 
-  const open = docked && dockable;
+  const open = docked && roomy;
 
   return (
     <div
       style={{ width: open ? width : 0 }}
-      className={cn(
-        "overflow-clip transition-[width] duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
-        open && "[overflow-clip-margin:8px]",
-      )}
+      className="overflow-clip transition-[width] duration-500 ease-[cubic-bezier(0.32,0.72,0,1)] [overflow-clip-margin:8px] motion-reduce:transition-none"
     >
       {/* `w-max` keeps the button at its natural size while the box around it
           is still collapsing — a block child would shrink with it. */}
@@ -89,7 +87,7 @@ export function HeaderConnectCta({
             : "-translate-y-1 scale-95 opacity-0",
         )}
       >
-        <ConnectButton compact />
+        <ConnectButton compact className="max-sm:h-11" />
       </div>
     </div>
   );

@@ -6,6 +6,7 @@ import {
   MAX_ACCOUNT_NICKNAME,
   OAuthProvider,
   Provider,
+  calendarOwners,
   createCalendarProvider,
   createProvider,
   refreshAccessToken,
@@ -71,6 +72,9 @@ async function accountDocs(userId: string): Promise<AccountDoc[]> {
 
 export async function listAccounts(userId: string): Promise<ConnectedAccount[]> {
   const docs = await accountDocs(userId);
+  // Addresses sharing one sign-in share one set of calendars — work out which
+  // of them speaks for it here, once, so every surface agrees on the answer.
+  const owners = calendarOwners(docs);
   return docs.map((d) => ({
     id: d._id,
     userId: d.userId,
@@ -80,6 +84,7 @@ export async function listAccounts(userId: string): Promise<ConnectedAccount[]> 
     nickname: d.nickname,
     status: d.status,
     capabilities: capabilitiesOf(d),
+    ...(owners.has(d.email) ? { calendarOf: owners.get(d.email) } : {}),
     connectedAt: d.connectedAt,
   }));
 }
@@ -313,8 +318,12 @@ export async function checkAccount(userId: string, email: string): Promise<Accou
 
     // Calendar is a separate grant on the same credential, so it can fail on
     // its own — a check that only proved mail would call that account healthy.
-    const accounts = await listAccounts(userId);
-    if (accounts.find((a) => a.email === email)?.capabilities.includes("calendar")) {
+    // An address whose calendar lives on a sibling is checked when that sibling
+    // is, rather than probing one Apple sign-in once per alias.
+    const account = (await listAccounts(userId)).find((a) => a.email === email);
+    if (account?.calendarOf) {
+      detail.push(`calendar via ${account.calendarOf}`);
+    } else if (account?.capabilities.includes("calendar")) {
       const calendars = await (await getCalendarForAccount(userId, email)).listCalendars();
       detail.push(`${calendars.length} calendars reachable`);
     }

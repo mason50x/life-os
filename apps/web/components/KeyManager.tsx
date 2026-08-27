@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { KeyIcon } from "@heroicons/react/24/outline";
 import { createApiKey, deleteApiKey } from "@/app/dashboard/actions";
+import { useLiveKeys } from "@/components/dashboard/live";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,10 +25,13 @@ interface KeyRow {
   createdAt: number;
 }
 
-export function KeyManager({ keys }: { keys: KeyRow[] }) {
+export function KeyManager({ keys: initialKeys }: { keys: KeyRow[] }) {
   const [name, setName] = useState("");
   const [newKey, setNewKey] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  // Live: a key minted or revoked anywhere — another tab, the CLI — appears
+  // here as it happens. The server-rendered list covers the first paint.
+  const keys: KeyRow[] = useLiveKeys(initialKeys);
 
   return (
     <div className="space-y-4">

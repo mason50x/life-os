@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { after } from "next/server";
 import { api, convexAsUser } from "@/lib/convex";
 import { AppSidebar } from "@/components/dashboard/AppSidebar";
+import { DashboardProviders } from "@/components/dashboard/DashboardProviders";
 import { accountsOf, session } from "./data";
 import { signOutAction } from "./actions";
 
@@ -12,7 +13,10 @@ import { signOutAction } from "./actions";
  * across navigations and only the column re-renders.
  */
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { user, accessToken } = await session();
+  // The token stays server-side; the rest seeds AuthKit's client provider so
+  // it doesn't re-ask the server who is signed in on every full page load.
+  const { accessToken, ...initialAuth } = await session();
+  const { user } = initialAuth;
 
   // Mirror the WorkOS user into Convex (JWT-authenticated; non-fatal on
   // failure). Nothing on the page reads the result, so it runs after the
@@ -34,24 +38,30 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const [accounts, jar] = await Promise.all([accountsOf(user.id), cookies()]);
 
   return (
-    <div className="flex h-dvh overflow-hidden">
-      <AppSidebar
-        user={{
-          name: [user.firstName, user.lastName].filter(Boolean).join(" ") || user.email,
-          email: user.email,
-          avatarUrl: user.profilePictureUrl ?? undefined,
-        }}
-        accounts={accounts.map((a) => ({
-          id: a.id,
-          email: a.email,
-          provider: a.provider,
-          status: a.status,
-          capabilities: a.capabilities,
-        }))}
-        defaultCollapsed={jar.get("lifeos-sidebar")?.value === "collapsed"}
-        signOut={signOutAction}
-      />
-      <div className="flex min-w-0 flex-1 flex-col">{children}</div>
-    </div>
+    // DashboardProviders is what makes every list below live: the server
+    // snapshots passed down cover the first paint, then each component's
+    // Convex subscription owns its data.
+    <DashboardProviders initialAuth={initialAuth}>
+      <div className="flex h-dvh overflow-hidden">
+        <AppSidebar
+          user={{
+            name: [user.firstName, user.lastName].filter(Boolean).join(" ") || user.email,
+            email: user.email,
+            avatarUrl: user.profilePictureUrl ?? undefined,
+          }}
+          accounts={accounts.map((a) => ({
+            id: a.id,
+            email: a.email,
+            provider: a.provider,
+            status: a.status,
+            capabilities: a.capabilities,
+            calendarOf: a.calendarOf,
+          }))}
+          defaultCollapsed={jar.get("lifeos-sidebar")?.value === "collapsed"}
+          signOut={signOutAction}
+        />
+        <div className="flex min-w-0 flex-1 flex-col">{children}</div>
+      </div>
+    </DashboardProviders>
   );
 }

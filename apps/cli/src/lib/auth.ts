@@ -13,6 +13,8 @@ export interface InstanceConfig {
   mcpUrl: string;
   authkitDomain: string;
   workosClientId: string;
+  /** Convex deployment for live subscriptions; absent on older servers. */
+  convexUrl?: string | null;
 }
 
 export interface DeviceGrant {

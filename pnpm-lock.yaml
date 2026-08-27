@@ -26,6 +26,9 @@ importers:
       commander:
         specifier: ^13.1.0
         version: 13.1.0
+      convex:
+        specifier: ^1.24.0
+        version: 1.45.0(react@19.2.8)
       ink:
         specifier: ^6.8.0
         version: 6.8.0(@types/react@19.2.18)(react@19.2.8)

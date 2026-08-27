@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { BrandMenu } from "@/components/BrandMenu";
 import { Logo } from "@/components/Logo";
-import { MobileNav } from "@/components/MobileNav";
 import { PendingButton } from "@/components/PendingButton";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
@@ -32,13 +31,15 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
             LifeOS
           </BrandMenu>
           <div className="flex items-center gap-2">
-            <span className="max-sm:hidden">
-              <ThemeToggle />
-            </span>
-            <PendingButton href="/login" variant="ghost" size="default" className="max-sm:hidden">
+            <ThemeToggle className="max-sm:size-11" />
+            <PendingButton
+              href="/login"
+              variant="ghost"
+              size="default"
+              className="max-sm:h-11"
+            >
               Sign in
             </PendingButton>
-            <MobileNav className="sm:hidden" />
           </div>
         </nav>
       </header>

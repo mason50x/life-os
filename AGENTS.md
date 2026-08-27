@@ -130,6 +130,17 @@ A few things worth knowing before you change code:
   sibling on the same sign-in (`grantCapability`), because iCloud custom-domain
   addresses are separate rows over one app-specific password. There is nothing
   to backfill.
+- **Mail is per address; a calendar is per sign-in.** Several iCloud addresses
+  over one Apple sign-in are genuinely several inboxes, and genuinely one set of
+  calendars. `calendarOwners` (`packages/core/src/types.ts`, imported by both
+  `lib/accounts.ts` and the Convex `accounts.mine` query through the
+  `@lifeos/core/accounts` subpath) picks the one account that stands for a
+  shared calendar and marks the rest with `calendarOf`. Anything calendar-side
+  — MCP fan-out and `resolveAccount`, the dashboard count, the sidebar's
+  Calendar section, `doctor` — acts on `capabilities.includes("calendar") &&
+  !calendarOf`, so a calendar is listed, counted and probed once however many
+  addresses send through it. Naming an alias in a calendar tool resolves to its
+  owner rather than failing.
 - **`/mcp` is the canonical URL.** `/mcp/email` and `/mcp/calendar` exist as an
   escape hatch for narrowly scoped agents, and get their own RFC 9728 metadata
   through `.well-known/oauth-protected-resource/mcp/[[...surface]]`. A path can

@@ -21,7 +21,7 @@ export function registerAccountTools({ register, session }: Kit) {
     {
       title: "List connected accounts",
       description:
-        "Start here. Lists every email account the user has connected to LifeOS, with the name the user knows it by, its provider, whether it is usable right now, and whether it files mail by labels (Gmail) or folders (Outlook, iCloud). Every other tool acts on one of these accounts — pass either the name or the address as `account` — and message ids are only valid on the account that produced them.",
+        "Start here. Lists every email account the user has connected to LifeOS, with the name the user knows it by, its provider, whether it is usable right now, and whether it files mail by labels (Gmail) or folders (Outlook, iCloud). Every other tool acts on one of these accounts — pass either the name or the address as `account` — and message ids are only valid on the account that produced them. `shares_calendar_with` marks an address whose calendar is another account's: separate inboxes, one shared set of calendars, counted once.",
       inputSchema: {},
       annotations: READ_ONLY,
       surface: "core",
@@ -40,6 +40,10 @@ export function registerAccountTools({ register, session }: Kit) {
           status: a.status,
           displayName: a.displayName,
           organizes_by: ORGANISES_BY[a.provider],
+          // iCloud alias and custom-domain addresses are separate inboxes over
+          // one Apple sign-in, which has one set of calendars. Saying so stops
+          // three addresses reading as three calendars.
+          ...(a.calendarOf ? { shares_calendar_with: a.calendarOf } : {}),
         })),
         ...(accounts.length === 0
           ? {
