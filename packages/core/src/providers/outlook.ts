@@ -119,6 +119,17 @@ export class OutlookProvider implements EmailProvider {
   }
 
   async search(query: string, maxResults = 20): Promise<MessageSummary[]> {
+    // Graph rejects an empty $search with "An identifier was expected at
+    // position 0", and an empty query is a real request here: a bare inbox
+    // listing, or filters like unread and flagged that KQL can't express and
+    // that get applied after the fact. With no KQL to send, list the inbox
+    // newest-first instead, which is what "no query" means on every provider.
+    if (!query.trim()) {
+      const res = await this.request<{ value: GraphMessage[] }>(
+        `/me/mailFolders/inbox/messages?$orderby=receivedDateTime desc&$top=${maxResults}`,
+      );
+      return res.value.map((m) => this.toSummary(m));
+    }
     const res = await this.request<{ value: GraphMessage[] }>(
       `/me/messages?$search=${encodeURIComponent(`"${query.replace(/"/g, '\\"')}"`)}&$top=${maxResults}`,
       undefined,
