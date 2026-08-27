@@ -2,7 +2,7 @@ import { Box, Text } from "ink";
 import { Sidebar, type NavItem } from "./Sidebar.js";
 import { theme } from "./theme.js";
 
-/** Below this the rail drops to initials so the content pane stays usable. */
+/** Below this the header drops identity so the content pane stays usable. */
 const COLLAPSE_BELOW = 72;
 
 /**
@@ -56,7 +56,7 @@ export function Layout({
       </Box>
 
       <Box flexGrow={1} overflow="hidden">
-        <Sidebar items={nav} current={current} focused={navFocused} collapsed={collapsed} />
+        <Sidebar items={nav} current={current} focused={navFocused} />
         <Box
           flexGrow={1}
           flexDirection="column"
