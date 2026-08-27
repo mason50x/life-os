@@ -342,10 +342,10 @@ function Section({
       >
         <div className="overflow-hidden">
           <div
-            // 13.3125rem is what the open panel leaves after the indent and
-            // the rule: fixed, so an address truncates once and stays put.
+            // What the open panel leaves after the indent and the rule, fixed
+            // rather than measured: an address truncates once and stays put.
             className={cn(
-              "mt-1 ml-[1.25rem] flex w-[13.3125rem] flex-col gap-1 border-l pl-1.5",
+              "mt-1 ml-[1.25rem] flex w-[13.6875rem] flex-col gap-1 border-l pl-1.5",
               fading(collapsed),
             )}
             inert={expanded ? undefined : true}

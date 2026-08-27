@@ -83,19 +83,17 @@ export function AccountName({
   }
 
   return (
-    <div className="flex items-center gap-1.5">
-      <button
-        type="button"
-        onClick={open}
-        className="truncate rounded-sm text-sm transition-colors hover:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-        title="Rename"
-      >
-        {name}
-      </button>
+    <button
+      type="button"
+      onClick={open}
+      className="flex min-w-0 max-w-full items-center gap-1.5 rounded-sm text-sm transition-colors hover:text-muted-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      title="Rename"
+    >
+      <span className="min-w-0 truncate">{name}</span>
       <PencilSquareIcon
         className="size-3.5 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
         aria-hidden
       />
-    </div>
+    </button>
   );
 }
