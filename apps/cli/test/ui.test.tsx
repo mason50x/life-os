@@ -107,6 +107,23 @@ describe("Accounts", () => {
     expect(lastFrame()).toContain("iCloud");
   });
 
+  it("shows an inbox by name, and renames it on `n`", async () => {
+    const rename = vi.fn(async () => ({ email: "one@gmail.com" }));
+    const { lastFrame, stdin } = render(
+      <Accounts client={stubClient({ renameAccount: rename })} focused height={20} />,
+    );
+    await settle();
+    expect(lastFrame()).toContain("one "); // the name, with the address beside it
+    stdin.write("n");
+    await settle();
+    expect(lastFrame()).toContain("Rename");
+    stdin.write("Work");
+    await settle();
+    stdin.write("\r");
+    await settle();
+    expect(rename).toHaveBeenCalledWith("a1", "Work");
+  });
+
   it("ignores keys when the rail has focus instead of the pane", async () => {
     const { lastFrame, stdin } = render(<Accounts client={stubClient()} focused={false} height={20} />);
     await settle();
@@ -127,6 +144,33 @@ describe("Accounts", () => {
     stdin.write("\r"); // bare enter must not be enough
     await settle();
     expect(remove).not.toHaveBeenCalled();
+  });
+
+  it("adds calendar on `e` with the credential the server already has", async () => {
+    const enable = vi.fn(async () => ({ enabled: ["one@gmail.com"] }));
+    const { lastFrame, stdin } = render(
+      <Accounts client={stubClient({ enableCalendar: enable })} focused height={20} />,
+    );
+    await settle();
+    // The offer has to be visible before it's worth pressing.
+    expect(lastFrame()).toContain("press e to add calendar");
+    stdin.write("e");
+    await settle();
+    expect(enable).toHaveBeenCalledWith("a1");
+    expect(lastFrame()).toContain("Calendar on for one@gmail.com.");
+  });
+
+  it("points at reconnect only when the stored credential can't reach the calendar", async () => {
+    const enable = vi.fn(async () => {
+      throw new Error("This Google account was connected without the calendar permission.");
+    });
+    const { lastFrame, stdin } = render(
+      <Accounts client={stubClient({ enableCalendar: enable })} focused height={20} />,
+    );
+    await settle();
+    stdin.write("e");
+    await settle();
+    expect(lastFrame()).toContain("Press r to reconnect it.");
   });
 
   it("says so plainly when there is nothing connected", async () => {

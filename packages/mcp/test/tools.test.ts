@@ -232,6 +232,16 @@ describe("resolveAccount", () => {
     expect(body(await listCalendars.handler({} as never, {}))).toContain("both@example.com");
   });
 
+  it("accepts the name the user gave an account, not just its address", async () => {
+    const named = collectSpecs(async () =>
+      fakeSession([account({ id: "1", email: "me@example.com", nickname: "Work" })]),
+    );
+    const listLabels = named.find((s) => s.name === "list_labels")!;
+    expect(body(await listLabels.handler({ account: "work" } as never, {}))).toContain(
+      "me@example.com",
+    );
+  });
+
   it("explains that a mail-only account needs reconnecting, and names one that works", async () => {
     const getEvent = specs.find((s) => s.name === "get_event")!;
     const result = await getEvent.handler(

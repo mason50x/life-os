@@ -69,6 +69,53 @@ export const upsert = mutation({
   },
 });
 
+/**
+ * Record a capability the account has just proved it has, without touching its
+ * credential — the passwordless half of "enable calendar".
+ *
+ * It spreads to every sibling signing in with the same credential: iCloud
+ * custom-domain and alias addresses are separate rows over one app-specific
+ * password, so a CalDAV round trip on any of them proves calendar for all of
+ * them, and upgrading one while the others stay mail-only would be a lie.
+ * Returns the addresses that changed, so the caller can say what it did.
+ */
+export const grantCapability = mutation({
+  args: {
+    serviceKey: v.string(),
+    userId: v.string(),
+    id: v.id("emailAccounts"),
+    capability: v.union(v.literal("email"), v.literal("calendar")),
+  },
+  handler: async (ctx, args) => {
+    assertServiceKey(args.serviceKey);
+    const doc = await ctx.db.get(args.id);
+    // Ownership lives here, same as `rename` and `remove` — a foreign id is a
+    // no-op, not an error the caller can learn anything from.
+    if (!doc || doc.userId !== args.userId) return [];
+    const signIn = doc.loginEmail ?? doc.email;
+
+    const rows = await ctx.db
+      .query("emailAccounts")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .collect();
+
+    const upgraded: string[] = [];
+    for (const row of rows) {
+      if (row.provider !== doc.provider) continue;
+      if ((row.loginEmail ?? row.email) !== signIn) continue;
+      // Absent capabilities mean a row written before calendar existed, which
+      // is mail — the same reading the rest of the app gives it.
+      const capabilities: ("email" | "calendar")[] = row.capabilities?.length
+        ? row.capabilities
+        : ["email"];
+      if (capabilities.includes(args.capability)) continue;
+      await ctx.db.patch(row._id, { capabilities: [...capabilities, args.capability] });
+      upgraded.push(row.email);
+    }
+    return upgraded;
+  },
+});
+
 export const updateTokens = mutation({
   args: {
     serviceKey: v.string(),
@@ -93,6 +140,27 @@ export const setStatus = mutation({
   handler: async (ctx, args) => {
     assertServiceKey(args.serviceKey);
     await ctx.db.patch(args.id, { status: args.status });
+  },
+});
+
+/**
+ * Rename an account. An absent `nickname` clears the name, which patches the
+ * field away and puts the account back on its default. Ownership is checked
+ * here, not trusted from the caller — same rule as `remove`.
+ */
+export const rename = mutation({
+  args: {
+    serviceKey: v.string(),
+    id: v.id("emailAccounts"),
+    userId: v.string(),
+    nickname: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    assertServiceKey(args.serviceKey);
+    const doc = await ctx.db.get(args.id);
+    if (!doc || doc.userId !== args.userId) return null;
+    await ctx.db.patch(args.id, { nickname: args.nickname });
+    return doc.email;
   },
 });
 

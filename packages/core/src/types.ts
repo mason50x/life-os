@@ -16,10 +16,50 @@ export interface ConnectedAccount {
   provider: Provider;
   email: string;
   displayName?: string;
+  /** What the user renamed this account to. Absent means the default name. */
+  nickname?: string;
   status: "active" | "needs_reauth" | "disconnected";
   /** Never empty: an account with nothing usable would not be stored. */
   capabilities: Capability[];
   connectedAt: number;
+}
+
+/** Longest nickname worth storing — a name, not a sentence. */
+export const MAX_ACCOUNT_NICKNAME = 40;
+
+/**
+ * The name an account goes by when nobody has renamed it: the address without
+ * its domain, which is what people call these accounts out loud anyway.
+ */
+export function defaultAccountName(email: string): string {
+  return email.split("@")[0] || email;
+}
+
+/** What one account is called — the user's name for it, or the default. */
+export function accountName(account: { email: string; nickname?: string }): string {
+  return account.nickname?.trim() || defaultAccountName(account.email);
+}
+
+/**
+ * Names for a whole list, keyed by email. Defaults collide the moment someone
+ * connects mason@gmail.com and mason@icloud.com, and two rows reading "mason"
+ * help nobody — so a colliding default falls back to the full address, while a
+ * nickname the user typed is left exactly as they typed it.
+ */
+export function accountNames(accounts: { email: string; nickname?: string }[]): Map<string, string> {
+  const counts = new Map<string, number>();
+  for (const a of accounts) {
+    if (a.nickname?.trim()) continue;
+    const name = defaultAccountName(a.email).toLowerCase();
+    counts.set(name, (counts.get(name) ?? 0) + 1);
+  }
+  return new Map(
+    accounts.map((a) => {
+      const name = accountName(a);
+      const ambiguous = !a.nickname?.trim() && (counts.get(name.toLowerCase()) ?? 0) > 1;
+      return [a.email, ambiguous ? a.email : name];
+    }),
+  );
 }
 
 export interface EmailAddress {

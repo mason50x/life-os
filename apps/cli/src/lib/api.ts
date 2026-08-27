@@ -50,12 +50,26 @@ export class LifeOsClient {
     return (await this.request<{ accounts: Account[] }>("GET", "/accounts")).accounts;
   }
 
+  /** An empty name puts the account back on its default. */
+  renameAccount(id: string, name: string): Promise<{ email: string }> {
+    return this.request("PATCH", `/accounts/${encodeURIComponent(id)}`, { name });
+  }
+
   removeAccount(id: string): Promise<void> {
     return this.request("DELETE", `/accounts/${encodeURIComponent(id)}`);
   }
 
   checkAccount(id: string): Promise<AccountCheck> {
     return this.request("POST", `/accounts/${encodeURIComponent(id)}/check`);
+  }
+
+  /**
+   * Add calendar to an account connected for mail, using the credential the
+   * server already holds. Throws when that credential can't reach the calendar
+   * — then, and only then, is a reconnect worth offering.
+   */
+  enableCalendar(id: string): Promise<{ enabled: string[] }> {
+    return this.request("POST", `/accounts/${encodeURIComponent(id)}/calendar`);
   }
 
   connectIcloud(email: string, password: string, sendAs: string[] = []): Promise<{ addresses: string[] }> {

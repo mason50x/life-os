@@ -14,7 +14,21 @@ function formatAppPassword(raw: string): string {
   return letters.replace(/(.{4})(?=.)/g, "$1-");
 }
 
-export function ICloudConnectForm() {
+/**
+ * `defaultEmail` and `defaultAddresses` arrive prefilled when an account that
+ * is already connected comes back for calendar: LifeOS knows the sign-in
+ * address and every send-as address on it, and re-entering the whole mailbox
+ * by hand is how one of them gets left behind on mail only.
+ */
+export function ICloudConnectForm({
+  defaultEmail,
+  defaultAddresses,
+  forCalendar = false,
+}: {
+  defaultEmail?: string;
+  defaultAddresses?: string;
+  forCalendar?: boolean;
+} = {}) {
   const [state, formAction, pending] = useActionState<ICloudFormState, FormData>(
     connectICloud,
     {},
@@ -32,6 +46,7 @@ export function ICloudConnectForm() {
           required
           autoComplete="email"
           placeholder="you@icloud.com"
+          defaultValue={defaultEmail}
         />
         <p className="text-xs leading-relaxed text-muted-foreground">
           Your @icloud.com, @me.com, or @mac.com address — Apple only accepts sign-ins with the
@@ -75,6 +90,7 @@ export function ICloudConnectForm() {
           autoCorrect="off"
           spellCheck={false}
           placeholder="you@yourdomain.com, support@yourdomain.com"
+          defaultValue={defaultAddresses}
         />
         <p className="text-xs leading-relaxed text-muted-foreground">
           iCloud+ custom-domain and alias addresses share one mailbox, so they all use this same
@@ -91,11 +107,16 @@ export function ICloudConnectForm() {
       )}
 
       <Button type="submit" disabled={pending}>
-        {pending ? "Verifying with iCloud…" : "Connect iCloud Mail"}
+        {pending
+          ? "Verifying with iCloud…"
+          : forCalendar
+            ? "Reconnect with calendar"
+            : "Connect iCloud Mail and Calendar"}
       </Button>
 
       <p className="text-center text-xs leading-relaxed text-muted-foreground">
-        Stored AES-256 encrypted and only ever sent to Apple&apos;s mail servers. Revoke it
+        Stored AES-256 encrypted and only ever sent to Apple&apos;s mail and calendar servers.
+        Revoke it
         anytime at account.apple.com — LifeOS access stops instantly.
       </p>
     </form>

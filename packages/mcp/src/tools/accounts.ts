@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { Provider } from "@lifeos/core";
+import { accountNames, type Provider } from "@lifeos/core";
 import { ok } from "../format";
 import { resolveAccount } from "../session";
 import { CREATES, Kit, READ_ONLY, account, handled } from "./shared";
@@ -21,7 +21,7 @@ export function registerAccountTools({ register, session }: Kit) {
     {
       title: "List connected accounts",
       description:
-        "Start here. Lists every email account the user has connected to LifeOS, with its provider, whether it is usable right now, and whether it files mail by labels (Gmail) or folders (Outlook, iCloud). Every other tool acts on one of these accounts, and message ids are only valid on the account that produced them.",
+        "Start here. Lists every email account the user has connected to LifeOS, with the name the user knows it by, its provider, whether it is usable right now, and whether it files mail by labels (Gmail) or folders (Outlook, iCloud). Every other tool acts on one of these accounts — pass either the name or the address as `account` — and message ids are only valid on the account that produced them.",
       inputSchema: {},
       annotations: READ_ONLY,
       surface: "core",
@@ -29,8 +29,12 @@ export function registerAccountTools({ register, session }: Kit) {
     },
     handled(session, async (_args: Record<string, never>, s) => {
       const accounts = await s.listAccounts();
+      // What the user calls each account — their own name for it, or the
+      // address's local part. It's how they'll refer to one in conversation.
+      const names = accountNames(accounts);
       return ok({
         accounts: accounts.map((a) => ({
+          name: names.get(a.email),
           email: a.email,
           provider: a.provider,
           status: a.status,

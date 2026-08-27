@@ -1,14 +1,16 @@
 import Link from "next/link";
 import {
   ArrowPathIcon,
-  CalendarDaysIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
   InboxIcon,
   PlusIcon,
 } from "@heroicons/react/24/outline";
 import { HomeIcon } from "@heroicons/react/24/solid";
+import { MAX_ACCOUNT_NICKNAME, accountNames, defaultAccountName } from "@lifeos/core";
+import { AccountName } from "@/components/dashboard/AccountName";
 import { AddAccountMenu } from "@/components/dashboard/AddAccountMenu";
+import { EnableCalendarButton } from "@/components/dashboard/EnableCalendarButton";
 import {
   CapabilityBadges,
   ProviderMark,
@@ -32,11 +34,12 @@ import { accountsOf, keysOf, session } from "./data";
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ connected?: string; error?: string }>;
+  searchParams: Promise<{ connected?: string; calendar?: string; error?: string }>;
 }) {
   const [{ user }, params] = await Promise.all([session(), searchParams]);
   const [accounts, keys] = await Promise.all([accountsOf(user.id), keysOf(user.id)]);
   const providers = [...new Set(accounts.map((a) => providerLabel[a.provider]))];
+  const names = accountNames(accounts);
   const calendars = accounts.filter((a) => a.capabilities.includes("calendar")).length;
 
   return (
@@ -44,8 +47,12 @@ export default async function Home({
       <PageHeader title="Home" icon={HomeIcon} />
 
       <PageBody>
-        {(params.connected || params.error) && (
-          <Banner connected={params.connected} error={params.error} />
+        {(params.connected || params.calendar || params.error) && (
+          <Banner
+            connected={params.connected}
+            calendar={params.calendar}
+            error={params.error}
+          />
         )}
 
         {/* The three numbers worth glancing at, two of them a way through. */}
@@ -107,33 +114,32 @@ export default async function Home({
                   key={a.id}
                   id={`account-${a.id}`}
                   className={cn(
-                    "flex scroll-mt-20 items-center gap-4 px-5 py-3.5",
+                    "group flex scroll-mt-20 items-center gap-4 px-5 py-3.5",
                     i > 0 && "border-t",
                   )}
                 >
                   <ProviderMark provider={a.provider} className="size-5" />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm">{a.email}</p>
+                    <AccountName
+                      id={a.id}
+                      name={names.get(a.email) ?? a.email}
+                      nickname={a.nickname}
+                      defaultName={defaultAccountName(a.email)}
+                      maxLength={MAX_ACCOUNT_NICKNAME}
+                    />
                     <p className="truncate text-xs text-muted-foreground">
-                      {providerLabel[a.provider]} · connected{" "}
+                      {a.email} · {providerLabel[a.provider]} · connected{" "}
                       {new Date(a.connectedAt).toLocaleDateString()}
                     </p>
                   </div>
                   <CapabilityBadges capabilities={a.capabilities} className="hidden sm:flex" />
                   {/* An account linked before calendar existed holds a mail-only
-                      grant. Reconnecting is additive — the same flow, one more tick. */}
+                      grant — but usually a credential that reaches the calendar
+                      anyway. This asks the provider before it asks the user. */}
                   {a.status === "active" &&
                   !a.capabilities.includes("calendar") &&
                   providerCapabilities[a.provider].includes("calendar") ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      nativeButton={false}
-                      render={<a href={connectHref(a.provider)} />}
-                    >
-                      <CalendarDaysIcon data-icon="inline-start" />
-                      Enable calendar
-                    </Button>
+                    <EnableCalendarButton id={a.id} />
                   ) : a.status === "active" ? (
                     <span className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:flex">
                       <span className="size-1.5 rounded-full bg-foreground" aria-hidden />
@@ -175,7 +181,15 @@ export default async function Home({
   );
 }
 
-function Banner({ connected, error }: { connected?: string; error?: string }) {
+function Banner({
+  connected,
+  calendar,
+  error,
+}: {
+  connected?: string;
+  calendar?: string;
+  error?: string;
+}) {
   const bad = Boolean(error);
   return (
     <div
@@ -189,7 +203,11 @@ function Banner({ connected, error }: { connected?: string; error?: string }) {
       ) : (
         <CheckCircleIcon className="size-4 shrink-0" aria-hidden />
       )}
-      {bad ? `Connection failed: ${error}` : `Connected ${connected}`}
+      {bad
+        ? `Connection failed: ${error}`
+        : calendar
+          ? `Calendar enabled on ${calendar}`
+          : `Connected ${connected}`}
       <Link
         href="/dashboard"
         className="ml-auto text-xs text-muted-foreground transition-colors hover:text-foreground"

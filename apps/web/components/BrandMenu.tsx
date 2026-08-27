@@ -15,15 +15,26 @@ import {
  * Right-click any LifeOS mark to grab it: the master SVG, or the 2-color PNG
  * that fits under the ChatGPT Apps SDK's 10 KB cap. Both files are emitted
  * into `public/` by `brand/generate.py`, so nothing here restates the artwork.
+ *
+ * Pass `render` the link or span the lockup already lives in, so the wordmark
+ * is as right-clickable as the square is — the mark and "LifeOS" read as one
+ * target, and aiming at the 26px glyph shouldn't be the price of the menu.
  */
 
 const BRANDMARK_SVG = "/brandmark.svg";
 const CHATGPT_PNG = "/logo.png";
 
-export function BrandMenu({ children }: { children: React.ReactNode }) {
+export function BrandMenu({
+  children,
+  render,
+}: {
+  children: React.ReactNode;
+  /** The lockup's own element. Omit to get a bare inline wrapper. */
+  render?: React.ReactElement<Record<string, unknown>>;
+}) {
   return (
     <ContextMenu>
-      <ContextMenuTrigger render={<span className="inline-flex" />}>
+      <ContextMenuTrigger render={render ?? <span className="inline-flex" />}>
         {children}
       </ContextMenuTrigger>
       <ContextMenuContent>

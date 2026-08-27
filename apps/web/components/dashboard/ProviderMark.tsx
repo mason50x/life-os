@@ -1,5 +1,10 @@
+import { Fragment } from "react";
 import type { Capability, Provider } from "@lifeos/core";
 import { CalendarDaysIcon, EnvelopeIcon } from "@heroicons/react/24/outline";
+import {
+  CalendarDaysIcon as CalendarDaysSolid,
+  EnvelopeIcon as EnvelopeSolid,
+} from "@heroicons/react/24/solid";
 import { GmailMark, ICloudMark, OutlookMark } from "@/components/brand-marks";
 import { cn } from "@/lib/utils";
 
@@ -19,10 +24,10 @@ export const providerCapabilities: Record<Provider, Capability[]> = {
  * and Outlook hand straight off to their OAuth routes; iCloud needs an
  * app-specific password, so it stops at a page first.
  */
-export const connectRoutes: { provider: Provider; href: string; note: string }[] = [
-  { provider: "gmail", href: "/api/connect/google", note: "Mail · Calendar" },
-  { provider: "outlook", href: "/api/connect/microsoft", note: "Mail" },
-  { provider: "icloud", href: "/connect/icloud", note: "Mail · Calendar" },
+export const connectRoutes: { provider: Provider; href: string }[] = [
+  { provider: "gmail", href: "/api/connect/google" },
+  { provider: "outlook", href: "/api/connect/microsoft" },
+  { provider: "icloud", href: "/connect/icloud" },
 ];
 
 const capabilityIcon = { email: EnvelopeIcon, calendar: CalendarDaysIcon } as const;
@@ -49,6 +54,50 @@ export function CapabilityBadges({
             </span>
           );
         })}
+    </span>
+  );
+}
+
+/**
+ * Filled twins of the badge icons, one hue each. Colour is doing the work the
+ * labels used to: two solid shapes in a menu row are told apart by their tint
+ * before they're told apart by their outline. Indigo is the UI accent; amber
+ * is simply the furthest thing from it that still holds on both themes.
+ */
+const capabilitySolid = { email: EnvelopeSolid, calendar: CalendarDaysSolid } as const;
+const capabilityTint = { email: "text-indigo-500", calendar: "text-amber-500" } as const;
+
+/**
+ * The same thing CapabilityBadges says, without the words: an envelope, a
+ * calendar, or both joined by a plus. In a menu the labels would be the same
+ * two words down every row, and the marks read faster than they do.
+ */
+export function CapabilityIcons({
+  capabilities,
+  className,
+}: {
+  capabilities: Capability[];
+  className?: string;
+}) {
+  const has = (["email", "calendar"] as const).filter((c) => capabilities.includes(c));
+  return (
+    <span
+      className={cn("flex items-center gap-1 text-muted-foreground", className)}
+      aria-label={has.map((c) => capabilityLabel[c]).join(" and ")}
+    >
+      {has.map((c, i) => {
+        const Icon = capabilitySolid[c];
+        return (
+          <Fragment key={c}>
+            {i > 0 && (
+              <span aria-hidden className="text-xs">
+                +
+              </span>
+            )}
+            <Icon className={cn("size-4", capabilityTint[c])} aria-hidden />
+          </Fragment>
+        );
+      })}
     </span>
   );
 }

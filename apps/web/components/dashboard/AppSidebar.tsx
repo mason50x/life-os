@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import Link, { useLinkStatus } from "next/link";
+import { useFormStatus } from "react-dom";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Capability, Provider } from "@lifeos/core";
 import {
@@ -17,7 +18,13 @@ import {
   PlusIcon,
   SunIcon,
 } from "@heroicons/react/24/outline";
+import {
+  HomeIcon as HomeIconSolid,
+  KeyIcon as KeyIconSolid,
+  LinkIcon as LinkIconSolid,
+} from "@heroicons/react/24/solid";
 import { useTheme } from "next-themes";
+import { enableCalendarAction } from "@/app/dashboard/actions";
 import { BrandMenu } from "@/components/BrandMenu";
 import { Logo } from "@/components/Logo";
 import { Badge } from "@/components/ui/badge";
@@ -35,7 +42,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { AddAccountMenu } from "./AddAccountMenu";
-import { ProviderMark, connectHref, providerCapabilities } from "./ProviderMark";
+import { ProviderMark, providerCapabilities } from "./ProviderMark";
 
 export interface SidebarAccount {
   id: string;
@@ -55,6 +62,13 @@ export interface SidebarUser {
  * The dashboard's left rail. Two widths, one layout: collapsing swaps the
  * 16rem panel for a 3.5rem icon rail rather than re-rendering a second tree,
  * so nothing inside remounts and the sections keep whatever they had open.
+ *
+ * Folding is one movement, and only the panel makes it. A row's ground belongs
+ * to the rail and narrows with it; everything the row carries is fixed to the
+ * open width and stays exactly where it is, so no label re-wraps, re-truncates
+ * or slides, and every icon is already sitting on the closed rail's centre line
+ * before the edge arrives. What the narrow rail has no room for fades out ahead
+ * of the edge and back in behind it; the edge does the rest of the work.
  *
  * The collapsed state rides in a cookie so the server can render the right
  * width on the first paint — a client-only toggle would flash the wrong one.
@@ -103,44 +117,58 @@ export function AppSidebar({
     <aside
       data-collapsed={collapsed}
       className={cn(
-        "z-40 flex shrink-0 flex-col border-r bg-sidebar text-sidebar-foreground",
-        "transition-[width] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
+        "z-40 flex shrink-0 flex-col overflow-hidden border-r bg-sidebar text-sidebar-foreground",
+        "transition-[width] duration-250 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
         collapsed ? "w-14" : "w-64",
       )}
     >
-      {/* Header — mark, wordmark, and the handle that folds the rail away. */}
-      <div className="flex h-16 shrink-0 items-center border-b px-2.5">
-        {collapsed ? (
-          <RailButton label="Expand sidebar" onClick={toggle} className="group/logo">
-            <Logo size={20} interactive />
-          </RailButton>
-        ) : (
-          <>
+      {/* Header — mark, wordmark, and the handle that folds the rail away. One
+          lockup at either width: the mark keeps its slot, and the closed rail
+          hands it the job the fold-away button does while there's room. */}
+      <div className="flex h-16 w-64 shrink-0 items-center border-b px-2.5">
+        <BrandMenu
+          render={
             <Link
               href="/"
-              className="group/logo -m-1.5 flex items-center gap-2 p-1.5 text-base tracking-tight"
-            >
-              <BrandMenu>
-                <Logo size={22} interactive />
-              </BrandMenu>
-              LifeOS
-            </Link>
-            <button
-              type="button"
-              onClick={toggle}
-              aria-label="Collapse sidebar"
-              className="ml-auto flex size-7 items-center justify-center text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              <PanelIcon />
-            </button>
-          </>
-        )}
+              aria-label={collapsed ? "Expand sidebar" : undefined}
+              title={collapsed ? "Expand sidebar" : undefined}
+              onClick={
+                collapsed
+                  ? (e) => {
+                      e.preventDefault();
+                      toggle();
+                    }
+                  : undefined
+              }
+              className="group/logo flex items-center gap-1.5 text-base tracking-tight"
+            />
+          }
+        >
+          <span className="flex size-9 shrink-0 items-center justify-center">
+            <Logo size={20} interactive />
+          </span>
+          <Fade collapsed={collapsed}>LifeOS</Fade>
+        </BrandMenu>
+        <Fade collapsed={collapsed} className="ml-auto flex">
+          <button
+            type="button"
+            onClick={toggle}
+            aria-label="Collapse sidebar"
+            inert={collapsed ? true : undefined}
+            className="flex size-7 items-center justify-center text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <PanelIcon />
+          </button>
+        </Fade>
       </div>
 
-      <nav className="flex-1 overflow-x-hidden overflow-y-auto p-2">
+      {/* gap-1 keeps every row an island: the current page's fill and a
+          neighbour's hover fill never meet to read as one block. */}
+      <nav className="flex flex-1 flex-col gap-1 overflow-x-hidden overflow-y-auto p-2">
         <RailLink
           href="/dashboard"
           icon={HomeIcon}
+          activeIcon={HomeIconSolid}
           label="Home"
           collapsed={collapsed}
           active={pathname === "/dashboard"}
@@ -154,7 +182,7 @@ export function AppSidebar({
           open={emailOpen}
           onToggle={() => (collapsed ? reveal(setEmailOpen) : setEmailOpen((o) => !o))}
           trailing={
-            <span className="font-mono text-[0.7rem] text-muted-foreground">{accounts.length}</span>
+            <span className="text-xs tabular-nums text-muted-foreground">{accounts.length}</span>
           }
         >
           {accounts.map((a) => (
@@ -193,7 +221,7 @@ export function AppSidebar({
           open={calendarOpen}
           onToggle={() => (collapsed ? reveal(setCalendarOpen) : setCalendarOpen((o) => !o))}
           trailing={
-            <span className="font-mono text-[0.7rem] text-muted-foreground">
+            <span className="text-xs tabular-nums text-muted-foreground">
               {calendars.length}
             </span>
           }
@@ -216,24 +244,13 @@ export function AppSidebar({
             </Link>
           ))}
 
-          {/* An account linked before calendar existed holds a mail-only grant.
-              Reconnecting is additive — the same consent screen, one more tick. */}
+          {/* An account linked before calendar existed holds a mail-only grant,
+              though usually a credential that reaches the calendar anyway —
+              enabling asks the provider first and the user only if that fails. */}
           {pending.map((a) => (
-            <a
-              key={a.id}
-              href={connectHref(a.provider)}
-              title={`Enable calendar for ${a.email}`}
-              className="flex h-8 items-center gap-2.5 px-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              <ProviderMark provider={a.provider} className="opacity-40" />
-              <span className="truncate">{a.email}</span>
-              <Badge
-                variant="secondary"
-                className="ml-auto h-4 shrink-0 px-1.5 text-[0.65rem] font-normal"
-              >
-                Enable
-              </Badge>
-            </a>
+            <form key={a.id} action={enableCalendarAction.bind(null, a.id)}>
+              <EnableRow provider={a.provider} email={a.email} />
+            </form>
           ))}
 
           {calendars.length === 0 && pending.length === 0 && (
@@ -244,11 +261,12 @@ export function AppSidebar({
           )}
         </Section>
 
-        <div className="my-2 h-px bg-border" />
+        <div className="my-1 h-px bg-border" />
 
         <RailLink
           href="/dashboard/mcp"
           icon={LinkIcon}
+          activeIcon={LinkIconSolid}
           label="MCP connection"
           collapsed={collapsed}
           active={pathname === "/dashboard/mcp"}
@@ -256,6 +274,7 @@ export function AppSidebar({
         <RailLink
           href="/dashboard/keys"
           icon={KeyIcon}
+          activeIcon={KeyIconSolid}
           label="API keys"
           collapsed={collapsed}
           active={pathname === "/dashboard/keys"}
@@ -291,41 +310,46 @@ function Section({
   const expanded = open && !collapsed;
 
   return (
-    <div className="mb-1">
+    <div>
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={expanded}
         title={collapsed ? label : undefined}
-        className={cn(
-          "flex h-9 w-full items-center gap-2.5 text-sm transition-colors hover:bg-muted",
-          collapsed ? "justify-center px-0" : "px-2",
-        )}
+        className="flex h-9 w-full items-center gap-2.5 px-[0.6875rem] text-sm transition-colors hover:bg-muted"
       >
         <Icon className="size-4.5 shrink-0" />
-        {!collapsed && (
-          <>
-            <span className="truncate">{label}</span>
-            <span className="ml-auto flex items-center gap-1.5">
-              {trailing}
-              <ChevronRightIcon
-                className={cn(
-                  "size-3.5 text-muted-foreground transition-transform duration-200 motion-reduce:transition-none",
-                  expanded && "rotate-90",
-                )}
-              />
-            </span>
-          </>
-        )}
+        <Fade collapsed={collapsed} className="w-35 shrink-0 truncate text-left">
+          {label}
+        </Fade>
+        <Fade collapsed={collapsed} className="flex w-10 shrink-0 items-center justify-end gap-1.5">
+          {trailing}
+          <ChevronRightIcon
+            className={cn(
+              "size-3.5 text-muted-foreground transition-transform duration-250 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none",
+              expanded && "rotate-90",
+            )}
+          />
+        </Fade>
       </button>
 
-      {/* 0fr → 1fr animates a height the browser can't otherwise interpolate. */}
+      {/* 0fr → 1fr animates a height the browser can't otherwise interpolate.
+          It runs on the panel's own curve and clock, so the rows on their way
+          out and the edge closing over them arrive together. */}
       <div
-        className="grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none"
+        className="grid transition-[grid-template-rows] duration-250 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:transition-none"
         style={{ gridTemplateRows: expanded ? "1fr" : "0fr" }}
       >
         <div className="overflow-hidden">
-          <div className="ml-[1.1rem] border-l pl-1.5" inert={expanded ? undefined : true}>
+          <div
+            // 13.3125rem is what the open panel leaves after the indent and
+            // the rule: fixed, so an address truncates once and stays put.
+            className={cn(
+              "mt-1 ml-[1.25rem] flex w-[13.3125rem] flex-col gap-1 border-l pl-1.5",
+              fading(collapsed),
+            )}
+            inert={expanded ? undefined : true}
+          >
             {children}
           </div>
         </div>
@@ -336,78 +360,99 @@ function Section({
 
 /**
  * A flat nav row that survives collapsing by dropping to its icon. The page
- * you're on is marked by a full-height bar on the leading edge — the one place
- * in a zero-radius, monochrome UI where a fill would read as decoration.
+ * you're on is marked from the inside — tinted ground, weighted label, and the
+ * icon swapped to its solid cut — rather than by a rule down the leading edge.
  */
 function RailLink({
   href,
   icon: Icon,
+  activeIcon,
   label,
   collapsed,
   active,
 }: {
   href: string;
   icon: typeof KeyIcon;
+  activeIcon: typeof KeyIcon;
   label: string;
   collapsed: boolean;
   active?: boolean;
 }) {
+  const RailIconEl = active ? activeIcon : Icon;
+
   return (
     <Link
       href={href}
       title={collapsed ? label : undefined}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "relative flex h-9 items-center gap-2.5 text-sm transition-colors hover:bg-muted",
-        collapsed ? "justify-center px-0" : "px-2",
-        active ? "bg-muted text-foreground" : "text-muted-foreground hover:text-foreground",
+        "flex h-9 items-center gap-2.5 px-[0.6875rem] text-sm transition-colors hover:bg-muted",
+        active
+          ? "bg-muted font-semibold text-foreground"
+          : "text-muted-foreground hover:text-foreground",
       )}
     >
-      {active && <span className="absolute inset-y-0 left-0 w-0.5 bg-foreground" aria-hidden />}
-      <RailIcon icon={Icon} />
-      {!collapsed && <span className="truncate">{label}</span>}
+      <RailIconEl className="size-4.5 shrink-0" />
+      <Fade collapsed={collapsed} className="w-40 shrink-0 truncate">
+        {label}
+      </Fade>
     </Link>
   );
 }
 
 /**
- * The icon, or a spinner while its page is on the way. Dashboard routes are
- * dynamic, so a click always costs a round trip — this says which row you hit
- * before the new page arrives. Must live inside the `<Link>` to read it.
+ * One mail-only account, offering the calendar it doesn't have yet. Enabling
+ * goes out to Apple or Google with the credential on file, which takes long
+ * enough that the row has to say it's working.
  */
-function RailIcon({ icon: Icon }: { icon: typeof KeyIcon }) {
-  const { pending } = useLinkStatus();
-  return pending ? (
-    <Spinner className="size-4.5 shrink-0" />
-  ) : (
-    <Icon className="size-4.5 shrink-0" />
+function EnableRow({ provider, email }: { provider: Provider; email: string }) {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      title={`Enable calendar for ${email}`}
+      className="flex h-8 w-full items-center gap-2.5 px-2 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+    >
+      <ProviderMark provider={provider} className="opacity-40" />
+      <span className="truncate">{email}</span>
+      {pending ? (
+        <Spinner className="ml-auto size-3 shrink-0" />
+      ) : (
+        <Badge
+          variant="secondary"
+          className="ml-auto h-4 shrink-0 px-1.5 text-[0.65rem] font-normal"
+        >
+          Enable
+        </Badge>
+      )}
+    </button>
   );
 }
 
-function RailButton({
-  label,
-  onClick,
+/**
+ * A part of the open panel that the narrow rail has no room for. It keeps its
+ * place in the layout at either width — moving it would fight the one movement
+ * the fold is allowed — and instead leaves ahead of the closing edge and comes
+ * back behind the opening one, which is why the two directions time differently.
+ */
+function Fade({
+  collapsed,
   className,
   children,
 }: {
-  label: string;
-  onClick: () => void;
+  collapsed: boolean;
   className?: string;
   children: React.ReactNode;
 }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={label}
-      title={label}
-      className={cn(
-        "flex size-9 items-center justify-center transition-colors hover:bg-muted",
-        className,
-      )}
-    >
-      {children}
-    </button>
+  return <span className={cn(fading(collapsed), className)}>{children}</span>;
+}
+
+/** `Fade`'s classes, for the parts of the panel that can't take a `<span>`. */
+function fading(collapsed: boolean) {
+  return cn(
+    "transition-opacity ease-out motion-reduce:transition-none",
+    collapsed ? "opacity-0 duration-150" : "opacity-100 duration-150 delay-75",
   );
 }
 
@@ -444,18 +489,15 @@ function UserMenu({
           <button
             type="button"
             title={collapsed ? user.email : undefined}
-            className={cn(
-              "flex w-full items-center gap-2.5 text-left transition-colors hover:bg-muted aria-expanded:bg-muted",
-              collapsed ? "h-9 justify-center px-0" : "h-11 px-2",
-            )}
+            // px-1.5 against the rows' px-[0.6875rem]: the avatar is wider than
+            // a nav icon, and it is the centre lines that have to agree.
+            className="flex h-11 w-full items-center gap-2.5 px-1.5 text-left transition-colors hover:bg-muted aria-expanded:bg-muted"
           >
             <Avatar user={user} />
-            {!collapsed && (
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm">{user.name}</span>
-                <span className="block truncate text-xs text-muted-foreground">{user.email}</span>
-              </span>
-            )}
+            <Fade collapsed={collapsed} className="w-46 shrink-0">
+              <span className="block truncate text-sm">{user.name}</span>
+              <span className="block truncate text-xs text-muted-foreground">{user.email}</span>
+            </Fade>
           </button>
         }
       />

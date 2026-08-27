@@ -9,7 +9,13 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ProviderMark, connectRoutes, providerLabel } from "./ProviderMark";
+import {
+  CapabilityIcons,
+  ProviderMark,
+  connectRoutes,
+  providerCapabilities,
+  providerLabel,
+} from "./ProviderMark";
 
 export function AddAccountMenu({
   children,
@@ -39,7 +45,10 @@ export function AddAccountMenu({
             >
               <ProviderMark provider={r.provider} />
               {providerLabel[r.provider]}
-              <span className="ml-auto text-xs text-muted-foreground">{r.note}</span>
+              <CapabilityIcons
+                capabilities={providerCapabilities[r.provider]}
+                className="ml-auto"
+              />
             </DropdownMenuItem>
           ))}
         </DropdownMenuGroup>

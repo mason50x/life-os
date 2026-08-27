@@ -12,13 +12,13 @@ export function LegalHeader({
   summary: React.ReactNode[];
 }) {
   return (
-    <header className="mb-16">
-      <h1 className="text-balance text-4xl font-normal tracking-tighter sm:text-5xl">{title}</h1>
+    <header className="mb-10 sm:mb-16">
+      <h1 className="text-balance text-3xl font-normal tracking-tighter sm:text-5xl">{title}</h1>
       <p className="mt-4 font-mono text-xs tracking-widest text-muted-foreground uppercase">
         In effect since {effective}
       </p>
 
-      <div className="relative mt-10 border p-6 sm:p-8">
+      <div className="relative mt-8 border p-5 sm:mt-10 sm:p-8">
         <Cross className="-top-[8.5px] -left-[8.5px]" />
         <Cross className="-right-[8.5px] -bottom-[8.5px]" />
         <h2 className="text-sm font-medium">The short version</h2>
@@ -43,13 +43,16 @@ export function LegalHeader({
 /** Jump list. Section numbers match the `Section` headings one for one. */
 export function Contents({ sections }: { sections: { id: string; title: string }[] }) {
   return (
-    <nav aria-label="Contents" className="mb-16 border-t pt-8">
+    <nav aria-label="Contents" className="mb-10 border-t pt-8 sm:mb-16">
       <h2 className="font-mono text-xs tracking-widest text-muted-foreground uppercase">Contents</h2>
       <ol className="mt-4 grid gap-x-8 gap-y-2 sm:grid-cols-2">
         {sections.map((s, i) => (
-          <li key={s.id} className="flex gap-3 text-sm">
-            <span className="font-mono text-muted-foreground">{String(i + 1).padStart(2, "0")}</span>
-            <Link href={`#${s.id}`} className="text-muted-foreground transition-colors hover:text-foreground">
+          <li key={s.id} className="flex gap-3 text-sm max-sm:items-baseline">
+            <span className="tabular-nums text-muted-foreground">{String(i + 1).padStart(2, "0")}</span>
+            <Link
+              href={`#${s.id}`}
+              className="text-muted-foreground transition-colors hover:text-foreground max-sm:py-1.5"
+            >
               {s.title}
             </Link>
           </li>
@@ -71,9 +74,9 @@ export function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section id={id} className="scroll-mt-24 border-t pt-10 pb-10 last:pb-0">
-      <h2 className="flex gap-4 text-2xl font-normal tracking-tighter">
-        <span className="mt-1.5 font-mono text-sm text-muted-foreground">
+    <section id={id} className="scroll-mt-20 border-t pt-8 pb-8 last:pb-0 sm:pt-10 sm:pb-10">
+      <h2 className="flex gap-3 text-xl font-normal tracking-tighter sm:gap-4 sm:text-2xl">
+        <span className="mt-1.5 text-sm tabular-nums text-muted-foreground">
           {String(n).padStart(2, "0")}
         </span>
         {title}

@@ -24,7 +24,7 @@ export default async function CliDone({
   const failed = Boolean(error);
 
   return (
-    <main className="flex min-h-svh flex-col items-center justify-center px-6 text-center">
+    <main className="flex min-h-dvh flex-col items-center justify-center px-6 py-16 text-center">
       <Logo />
 
       {failed ? (

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { withAuth } from "@workos-inc/authkit-nextjs";
-import { ExternalLink } from "lucide-react";
+import { ArrowTopRightOnSquareIcon } from "@heroicons/react/24/outline";
 import { BrandMenu } from "@/components/BrandMenu";
 import { Logo } from "@/components/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -53,25 +53,40 @@ const steps = [
   },
 ];
 
-export default async function ConnectICloud() {
-  await withAuth({ ensureSignedIn: true });
+export default async function ConnectICloud({
+  searchParams,
+}: {
+  searchParams: Promise<{ email?: string; addresses?: string; reason?: string }>;
+}) {
+  const [, params] = await Promise.all([withAuth({ ensureSignedIn: true }), searchParams]);
+  // Sent here by "Enable calendar" when the stored password no longer opens
+  // iCloud Calendar. Everything but the password is already known, so the page
+  // asks for the one thing it can't work out and says why.
+  const forCalendar = params.reason === "calendar";
 
   return (
-    <main className="mx-auto max-w-4xl px-6 pb-24">
-      <nav className="flex items-center justify-between py-8">
-        <Link href="/dashboard" className="flex items-center gap-2 text-lg font-normal tracking-tight">
-          <BrandMenu>
-            <Logo size={26} />
-          </BrandMenu>
+    <main className="mx-auto max-w-4xl px-6 pb-16 sm:pb-24">
+      <nav className="flex items-center justify-between gap-3 py-6 sm:py-8">
+        <BrandMenu
+          render={
+            <Link href="/dashboard" className="flex items-center gap-2 text-lg font-normal tracking-tight" />
+          }
+        >
+          <Logo size={26} />
           LifeOS
-        </Link>
+        </BrandMenu>
         <div className="flex items-center gap-2">
           <ThemeToggle />
           <Button
             variant="outline"
             size="sm"
             nativeButton={false}
-            render={<Link href="/dashboard">Back to dashboard</Link>}
+            render={
+              <Link href="/dashboard">
+                <span className="max-sm:hidden">Back to dashboard</span>
+                <span className="sm:hidden">Dashboard</span>
+              </Link>
+            }
           />
         </div>
       </nav>
@@ -79,15 +94,32 @@ export default async function ConnectICloud() {
       <header className="mb-8">
         <div className="mb-4 flex flex-wrap items-center gap-2">
           <Badge variant="outline">iCloud</Badge>
-          <Badge variant="outline">No Apple developer account needed</Badge>
+          <Badge variant="outline">
+            {forCalendar ? "Mail stays connected" : "No Apple developer account needed"}
+          </Badge>
         </div>
-        <h1 className="text-4xl font-thin tracking-tight">Connect iCloud</h1>
+        <h1 className="text-3xl font-thin tracking-tight sm:text-4xl">
+          {forCalendar ? "Add iCloud Calendar" : "Connect iCloud"}
+        </h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
-          Apple doesn&apos;t offer &quot;Sign in with Apple&quot; for mail, so iCloud connects
-          with an <strong className="font-medium text-foreground">app-specific password</strong>{" "}
-          — a revocable password you create in about a minute. The one password reaches iCloud
-          Mail and iCloud Calendar, and it never expires, so you&apos;ll never see a re-auth
-          prompt.
+          {forCalendar ? (
+            <>
+              iCloud wouldn&apos;t open the calendar with the password we hold — most likely it
+              was revoked at some point. Generate a fresh{" "}
+              <strong className="font-medium text-foreground">app-specific password</strong> and
+              paste it below; it reaches Mail and Calendar together, and your mail keeps working
+              in the meantime either way.
+            </>
+          ) : (
+            <>
+              Apple doesn&apos;t offer &quot;Sign in with Apple&quot; for mail, so iCloud connects
+              with an{" "}
+              <strong className="font-medium text-foreground">app-specific password</strong> — a
+              revocable password you create in about a minute. The one password reaches iCloud
+              Mail and iCloud Calendar, and it never expires, so you&apos;ll never see a re-auth
+              prompt.
+            </>
+          )}
         </p>
       </header>
 
@@ -119,7 +151,7 @@ export default async function ConnectICloud() {
               render={
                 <a href="https://account.apple.com/sign-in" target="_blank" rel="noreferrer">
                   Open account.apple.com
-                  <ExternalLink data-icon="inline-end" />
+                  <ArrowTopRightOnSquareIcon data-icon="inline-end" />
                 </a>
               }
             />
@@ -131,7 +163,11 @@ export default async function ConnectICloud() {
             <CardTitle>Your details</CardTitle>
           </CardHeader>
           <CardContent>
-            <ICloudConnectForm />
+            <ICloudConnectForm
+              defaultEmail={params.email}
+              defaultAddresses={params.addresses}
+              forCalendar={forCalendar}
+            />
           </CardContent>
         </Card>
       </div>

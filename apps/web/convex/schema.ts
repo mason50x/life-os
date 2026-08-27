@@ -31,6 +31,9 @@ export default defineSchema({
     // sign in, when it differs from `email` (the send-as address).
     loginEmail: v.optional(v.string()),
     displayName: v.optional(v.string()),
+    // What the user renamed this account to in the dashboard or the CLI.
+    // Absent — the common case — means it goes by the address's local part.
+    nickname: v.optional(v.string()),
     status: v.union(
       v.literal("active"),
       v.literal("needs_reauth"),

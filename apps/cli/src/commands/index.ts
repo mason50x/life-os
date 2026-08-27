@@ -11,7 +11,14 @@ import { normalizeUrl, readConfig, updateConfig } from "../lib/config.js";
 import { backendName } from "../lib/credentials.js";
 import { canOpenBrowser, copyToClipboard, hasCommand, openBrowser } from "../lib/platform.js";
 import { checkForUpdate, runUpdate } from "../lib/update.js";
-import { PROVIDER_LABEL, type Provider } from "../lib/types.js";
+import {
+  PROVIDER_LABEL,
+  accountName,
+  accountNames,
+  defaultAccountName,
+  type Account,
+  type Provider,
+} from "../lib/types.js";
 import {
   bold,
   dim,
@@ -114,6 +121,18 @@ export async function status(opts: { apiUrl?: string; json?: boolean }): Promise
   print(`  mcp      ${indigo(me.mcpUrl)}`);
 }
 
+/**
+ * Find an account the way someone would name one out loud: by its address, or
+ * by whatever it's called in the list they just looked at.
+ */
+function findAccount(accounts: Account[], needle: string): Account | undefined {
+  const wanted = needle.trim().toLowerCase();
+  return (
+    accounts.find((a) => a.email.toLowerCase() === wanted) ??
+    accounts.find((a) => accountName(a).toLowerCase() === wanted)
+  );
+}
+
 export async function accountsList(opts: { apiUrl?: string; json?: boolean }): Promise<void> {
   const client = clientFor(opts.apiUrl);
   const accounts = await guard(() => client.accounts());
@@ -121,9 +140,26 @@ export async function accountsList(opts: { apiUrl?: string; json?: boolean }): P
   if (accounts.length === 0) {
     return print(`No inboxes connected. Run ${bold("lifeos accounts add gmail")}.`);
   }
+  const names = accountNames(accounts);
   for (const a of accounts) {
-    print(`${STATUS_MARK[a.status] ?? "?"} ${bold(a.email)} ${dim(`(${PROVIDER_LABEL[a.provider]})`)}`);
+    const name = names.get(a.email) ?? a.email;
+    const rest = name === a.email ? PROVIDER_LABEL[a.provider] : `${a.email} · ${PROVIDER_LABEL[a.provider]}`;
+    print(`${STATUS_MARK[a.status] ?? "?"} ${bold(name)} ${dim(rest)}`);
   }
+}
+
+/** Rename an account; no name at all puts it back on its default. */
+export async function accountsRename(
+  account: string,
+  name: string | undefined,
+  opts: { apiUrl?: string },
+): Promise<void> {
+  const client = clientFor(opts.apiUrl);
+  const accounts = await guard(() => client.accounts());
+  const target = findAccount(accounts, account);
+  if (!target) fail(`No connected inbox "${account}".`);
+  await guard(() => client.renameAccount(target.id, name ?? ""));
+  print(`${green("✓")} ${target.email} is now ${bold(name?.trim() || defaultAccountName(target.email))}.`);
 }
 
 /**
@@ -187,10 +223,30 @@ export async function accountsAdd(
   fail("Timed out waiting for the browser.");
 }
 
+/**
+ * Add calendar to an inbox that was connected for mail. The server proves the
+ * stored credential reaches the calendar before recording it, so this normally
+ * asks for nothing — and when it can't, it says which flow would fix it.
+ */
+export async function accountsCalendar(
+  account: string,
+  opts: { apiUrl?: string },
+): Promise<void> {
+  const client = clientFor(opts.apiUrl);
+  const accounts = await guard(() => client.accounts());
+  const target = findAccount(accounts, account);
+  if (!target) fail(`No connected inbox "${account}".`);
+  if (target.capabilities?.includes("calendar")) {
+    return print(`${green("✓")} ${target.email} already has calendar.`);
+  }
+  const { enabled } = await guard(() => client.enableCalendar(target.id));
+  print(`${green("✓")} Calendar on for ${enabled.join(", ") || target.email}.`);
+}
+
 export async function accountsRemove(email: string, opts: { apiUrl?: string }): Promise<void> {
   const client = clientFor(opts.apiUrl);
   const accounts = await guard(() => client.accounts());
-  const account = accounts.find((a) => a.email.toLowerCase() === email.toLowerCase());
+  const account = findAccount(accounts, email);
   if (!account) fail(`No connected inbox "${email}".`);
   await guard(() => client.removeAccount(account.id));
   print(`${green("✓")} Disconnected ${account.email}.`);

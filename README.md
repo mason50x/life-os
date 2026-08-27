@@ -55,7 +55,7 @@ lifeos                # the full-screen app
 ```
 
 Bare `lifeos` takes over the terminal: a rail down the left, and every screen the
-dashboard has — inboxes (add, reconnect, disconnect), the MCP endpoint, API keys,
+dashboard has — inboxes (add, rename, reconnect, add calendar, disconnect), the MCP endpoint, API keys,
 and a `doctor` that actually calls each provider instead of trusting the stored
 status. `tab` moves between the rail and the pane, `?` lists the keys.
 
@@ -65,6 +65,8 @@ Everything also works non-interactively, for scripts and CI:
 lifeos accounts list --json
 lifeos accounts add gmail                     # opens the browser to authorize
 lifeos accounts add icloud --email you@icloud.com  # prompts for the app password
+lifeos accounts rename you@gmail.com work     # name it; omit the name to undo
+lifeos accounts calendar you@icloud.com       # add calendar to an inbox — no password
 lifeos mcp install --client claude-code
 lifeos keys create ci
 lifeos doctor                                 # exits non-zero if anything is broken

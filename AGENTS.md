@@ -122,7 +122,14 @@ A few things worth knowing before you change code:
   from the scopes it actually returned (`capabilitiesFromScopes`); iCloud's
   calendar capability comes from a live CalDAV probe at connect time. A row
   with no `capabilities` predates calendar support and reads as `["email"]` —
-  it upgrades itself on the next reconnect, so there is nothing to backfill.
+  `enableCalendar` (`apps/web/lib/accounts.ts`) upgrades one on demand by
+  asking the provider to `listCalendars` with the credential already on file,
+  and records the capability only if that succeeds. That is what the dashboard's
+  "Enable calendar" button and `lifeos accounts calendar` do, so a mail-only row
+  almost never costs anyone a password or a consent screen. It spreads to every
+  sibling on the same sign-in (`grantCapability`), because iCloud custom-domain
+  addresses are separate rows over one app-specific password. There is nothing
+  to backfill.
 - **`/mcp` is the canonical URL.** `/mcp/email` and `/mcp/calendar` exist as an
   escape hatch for narrowly scoped agents, and get their own RFC 9728 metadata
   through `.well-known/oauth-protected-resource/mcp/[[...surface]]`. A path can

@@ -257,6 +257,9 @@
 .legal li {
   color: var(--muted-foreground);
   line-height: 1.75;
+  /* Scope URLs and mail addresses to the column instead of pushing the page
+     sideways — a phone is narrower than `https://www.googleapis.com/auth/…`. */
+  overflow-wrap: break-word;
 }
 
 .legal p + p,
@@ -303,4 +306,22 @@
 .legal code {
   font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 0.875em;
+  overflow-wrap: anywhere;
+}
+
+/* Theme toggle sun/moon swap. next-themes' disableTransitionOnChange drops a
+   `* { transition: none !important }` rule in for a frame — exactly the frame
+   the class flips — so a plain transition never plays. A class selector with
+   !important outranks the universal one, keeping the swap animated while the
+   rest of the page still switches instantly. */
+.theme-icon {
+  transition:
+    transform 480ms cubic-bezier(0.34, 1.56, 0.64, 1),
+    opacity 220ms ease-out !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-icon {
+    transition: opacity 120ms linear !important;
+  }
 }

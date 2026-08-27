@@ -1,12 +1,13 @@
-import { PageBody, Panel, cellBorders } from "@/components/dashboard/page-parts";
+import { Bar, PageBody, Panel, cellBorders } from "@/components/dashboard/page-parts";
 import { cn } from "@/lib/utils";
 
 /**
- * What a click paints instantly. These pages are dynamic — every navigation
- * waits on the session and a Convex read — so without a loading state the
- * browser sits on the old page for the whole round trip and `<Link>` has
- * nothing it can prefetch. The sidebar lives in the layout, so only the
- * column swaps.
+ * What a click on Home paints instantly. The page is dynamic — every
+ * navigation waits on the session and a Convex read — so without a loading
+ * state the browser sits on the old page for the whole round trip and
+ * `<Link>` has nothing it can prefetch. The sidebar lives in the layout, so
+ * only the column swaps. `keys/` and `mcp/` have their own, shaped like the
+ * page they stand in for.
  */
 export default function Loading() {
   return (
@@ -51,9 +52,4 @@ export default function Loading() {
       </PageBody>
     </>
   );
-}
-
-/** One placeholder block. Square, like everything else here. */
-function Bar({ className }: { className?: string }) {
-  return <div className={cn("bg-muted motion-safe:animate-pulse", className)} aria-hidden />;
 }

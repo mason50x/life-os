@@ -5,21 +5,26 @@ import { windowed } from "../ui/hooks.js";
 import { formatDate, theme } from "../ui/theme.js";
 import { openBrowser } from "../lib/platform.js";
 import {
+  MAX_ACCOUNT_NICKNAME,
   PROVIDER_CAPABILITIES,
   PROVIDER_LABEL,
+  accountNames,
   capabilityLabel,
+  defaultAccountName,
   type Account,
   type Provider,
 } from "../lib/types.js";
 import type { ScreenProps } from "./types.js";
 
-export const ACCOUNTS_KEYS = "↑↓ move · a add · r reconnect · c check · d disconnect";
+export const ACCOUNTS_KEYS =
+  "↑↓ move · a add · n rename · e calendar · r reconnect · c check · d disconnect";
 
 type Mode =
   | { name: "list" }
   | { name: "picker"; index: number; reconnect?: Account }
   | { name: "icloud"; field: number; email: string; password: string; sendAs: string; busy?: boolean }
   | { name: "browser"; provider: Provider; url: string; opened: boolean }
+  | { name: "rename"; account: Account; value: string; busy?: boolean }
   | { name: "confirm"; account: Account };
 
 const PROVIDERS: Provider[] = ["gmail", "outlook", "icloud"];
@@ -32,6 +37,7 @@ export function Accounts({ client, focused, height, onChanged }: ScreenProps) {
   const [mode, setMode] = useState<Mode>({ name: "list" });
   const [message, setMessage] = useState<{ text: string; bad?: boolean } | null>(null);
   const [checking, setChecking] = useState(false);
+  const [enabling, setEnabling] = useState(false);
   const watching = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const load = useCallback(async () => {
@@ -125,6 +131,22 @@ export function Accounts({ client, focused, height, onChanged }: ScreenProps) {
     }
   }, [client, load, mode, onChanged]);
 
+  const submitRename = useCallback(async () => {
+    if (mode.name !== "rename") return;
+    setMode({ ...mode, busy: true });
+    try {
+      await client.renameAccount(mode.account.id, mode.value);
+      const name = mode.value.trim() || defaultAccountName(mode.account.email);
+      setMode({ name: "list" });
+      setMessage({ text: `${mode.account.email} is now ${name}.` });
+      await load();
+      onChanged?.();
+    } catch (e) {
+      setMode({ ...mode, busy: false });
+      setMessage({ text: e instanceof Error ? e.message : String(e), bad: true });
+    }
+  }, [client, load, mode, onChanged]);
+
   const runCheck = useCallback(
     async (account: Account) => {
       setChecking(true);
@@ -144,7 +166,46 @@ export function Accounts({ client, focused, height, onChanged }: ScreenProps) {
     [client, load],
   );
 
+  /**
+   * Add calendar to an account already connected for mail. The server proves
+   * the stored credential reaches the calendar and records it — an iCloud
+   * app-specific password needs no extra grant to speak CalDAV, and a Google
+   * token works whenever its consent screen included calendar. Nobody is asked
+   * for anything unless that fails, which is what makes this a keypress and not
+   * a form.
+   */
+  const addCalendar = useCallback(
+    async (account: Account) => {
+      setEnabling(true);
+      setMessage(null);
+      try {
+        const { enabled } = await client.enableCalendar(account.id);
+        setMessage({
+          text: enabled.length
+            ? `Calendar on for ${enabled.join(", ")}.`
+            : `${account.email} already had calendar.`,
+        });
+        await load();
+        onChanged?.();
+      } catch (e) {
+        setMessage({
+          text: `${e instanceof Error ? e.message : String(e)} Press r to reconnect it.`,
+          bad: true,
+        });
+      } finally {
+        setEnabling(false);
+      }
+    },
+    [client, load, onChanged],
+  );
+
   const selected = accounts?.[index];
+  /** Mail-only, on a provider that has calendars: `e` has something to do. */
+  const canAddCalendar =
+    !!selected &&
+    selected.status === "active" &&
+    !selected.capabilities?.includes("calendar") &&
+    PROVIDER_CAPABILITIES[selected.provider].includes("calendar");
 
   useInput(
     (input, key) => {
@@ -155,6 +216,10 @@ export function Accounts({ client, focused, height, onChanged }: ScreenProps) {
         if (input === "r" && selected) {
           setMode({ name: "picker", index: PROVIDERS.indexOf(selected.provider), reconnect: selected });
         }
+        if (input === "n" && selected) {
+          setMode({ name: "rename", account: selected, value: selected.nickname ?? "" });
+        }
+        if (input === "e" && selected && canAddCalendar && !enabling) void addCalendar(selected);
         if (input === "c" && selected) void runCheck(selected);
         if (input === "d" && selected) setMode({ name: "confirm", account: selected });
         return;
@@ -186,6 +251,11 @@ export function Accounts({ client, focused, height, onChanged }: ScreenProps) {
         if (key.escape) return setMode({ name: "list" });
         if (key.tab || key.downArrow) return setMode({ ...mode, field: (mode.field + 1) % 3 });
         if (key.upArrow) return setMode({ ...mode, field: (mode.field + 2) % 3 });
+        return;
+      }
+
+      if (mode.name === "rename") {
+        if (key.escape && !mode.busy) setMode({ name: "list" });
         return;
       }
 
@@ -276,6 +346,31 @@ export function Accounts({ client, focused, height, onChanged }: ScreenProps) {
     );
   }
 
+  if (mode.name === "rename") {
+    const fallback = defaultAccountName(mode.account.email);
+    return (
+      <Box flexDirection="column">
+        <ScreenTitle title="Rename" note={mode.account.email} />
+        <Field
+          label="name"
+          value={mode.value}
+          onChange={(value) => setMode({ ...mode, value: value.slice(0, MAX_ACCOUNT_NICKNAME) })}
+          onSubmit={submitRename}
+          focused={!mode.busy}
+          placeholder={fallback}
+        />
+        <Box marginTop={1}>
+          {mode.busy ? (
+            <Spinner label="saving" />
+          ) : (
+            <Hint>{`⏎ save · esc cancel — leave it empty to go back to "${fallback}"`}</Hint>
+          )}
+        </Box>
+        <Feedback message={message} />
+      </Box>
+    );
+  }
+
   if (mode.name === "browser") {
     return (
       <Box flexDirection="column">
@@ -340,6 +435,7 @@ export function Accounts({ client, focused, height, onChanged }: ScreenProps) {
     );
   }
 
+  const names = accountNames(accounts);
   // Two lines per account plus the blank between them.
   const perRow = 3;
   const { slice, start } = windowed(accounts, index, Math.max(1, Math.floor((height - 3) / perRow)));
@@ -352,11 +448,14 @@ export function Accounts({ client, focused, height, onChanged }: ScreenProps) {
       />
       {slice.map((account) => {
         const isSelected = accounts[index]?.id === account.id;
+        const name = names.get(account.email) ?? account.email;
         return (
           <Box key={account.id} flexDirection="column" marginBottom={1}>
             <Box>
               <Text color={isSelected ? theme.accent : undefined}>{isSelected ? "❯ " : "  "}</Text>
-              <Text bold={isSelected}>{account.email}</Text>
+              <Text bold={isSelected}>{name}</Text>
+              {/* The address only earns a spot here when the name isn't already it. */}
+              {name !== account.email && <Text color={theme.muted}>{`  ${account.email}`}</Text>}
             </Box>
             <Box paddingLeft={2}>
               <StatusDot status={account.status} />
@@ -371,19 +470,24 @@ export function Accounts({ client, focused, height, onChanged }: ScreenProps) {
                 {formatDate(account.connectedAt)}
               </Text>
             </Box>
-            {/* A mail-only grant on a provider that has calendars: reconnecting
-                is additive, so this costs the person nothing but a browser tab. */}
+            {/* A mail-only grant on a provider that has calendars. The
+                credential on file usually reaches the calendar already, so this
+                is one key and no typing — see addCalendar. */}
             {account.status === "active" &&
               !account.capabilities?.includes("calendar") &&
               PROVIDER_CAPABILITIES[account.provider].includes("calendar") && (
                 <Box paddingLeft={2}>
-                  <Hint>press r to add calendar — it keeps the mail access you already gave</Hint>
+                  <Hint>press e to add calendar — no password, it reuses the sign-in you gave</Hint>
                 </Box>
               )}
           </Box>
         );
       })}
-      {checking ? <Spinner label="checking" /> : <Feedback message={message} />}
+      {checking || enabling ? (
+        <Spinner label={checking ? "checking" : "asking the provider for the calendar"} />
+      ) : (
+        <Feedback message={message} />
+      )}
     </Box>
   );
 }

@@ -1,3 +1,4 @@
+import { accountName } from "@lifeos/core";
 import type { CalendarProvider, Capability, ConnectedAccount, EmailProvider } from "@lifeos/core";
 
 /**
@@ -49,8 +50,8 @@ const NOTHING_CONNECTED: Record<Capability, string> = {
   email: "No email accounts are connected yet. The user needs to connect one in the LifeOS dashboard.",
   calendar:
     "No calendars are connected yet. Google and Apple accounts bring their calendar along with " +
-    "their mail — if the user connected an inbox before calendar support existed, reconnecting it " +
-    "in the LifeOS dashboard is all it takes.",
+    "their mail — if the user connected an inbox before calendar support existed, one click on " +
+    '"Enable calendar" in the LifeOS dashboard adds it to the connection they already made.',
 };
 
 /**
@@ -72,7 +73,12 @@ export async function resolveAccount(
     (a) => a.status === "active" && a.capabilities.includes(capability),
   );
   if (requested) {
-    const match = accounts.find((a) => a.email.toLowerCase() === requested.toLowerCase());
+    // Address first, then the name the user knows the account by — "personal"
+    // is what they say out loud, and it's what list_accounts hands the model.
+    const wanted = requested.trim().toLowerCase();
+    const match =
+      accounts.find((a) => a.email.toLowerCase() === wanted) ??
+      accounts.find((a) => accountName(a).toLowerCase() === wanted);
     if (!match) {
       throw new ToolError(
         `No connected account "${requested}". Connected: ${
@@ -89,7 +95,8 @@ export async function resolveAccount(
     if (!match.capabilities.includes(capability)) {
       throw new ToolError(
         `${match.email} is connected for ${match.capabilities.join(" and ")} only, not ${capability}. ` +
-          `Reconnecting it in the LifeOS dashboard grants the rest in the same step.` +
+          `The user can add ${capability} from the LifeOS dashboard — one click on "Enable ` +
+          `${capability}", no password or consent screen in the usual case.` +
           (usable.length
             ? ` Accounts that do have ${capability}: ${usable.map((a) => a.email).join(", ")}.`
             : ""),

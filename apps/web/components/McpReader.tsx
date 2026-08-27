@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useRef, useState } from "react";
-import { X } from "lucide-react";
+import { XMarkIcon } from "@heroicons/react/24/outline";
 import { Button } from "@/components/ui/button";
 
 /**
@@ -66,6 +66,7 @@ export function McpReaderTrigger() {
     <Button
       size="lg"
       variant="outline"
+      className="h-11 w-full sm:h-9 sm:w-auto"
       aria-expanded={open}
       aria-controls="mcp-reader"
       onClick={() => setOpen(!open)}
@@ -119,49 +120,49 @@ function McpPanel() {
           <Button
             size="icon-lg"
             variant="ghost"
+            className="-mr-2 max-sm:size-11"
             aria-label="Close reader"
             onClick={() => setOpen(false)}
           >
-            <X />
+            <XMarkIcon className="size-5" />
           </Button>
         </div>
       </div>
 
-      <div className="px-6 py-10 sm:px-10">
-        <h2 className="text-balance text-3xl font-normal tracking-tighter">
+      <div className="px-6 pt-8 pb-[max(2.5rem,env(safe-area-inset-bottom))] sm:px-10 sm:pt-10">
+        <h2 className="text-balance text-2xl font-normal tracking-tighter sm:text-3xl">
           What is MCP?
         </h2>
         <p className="mt-5 text-pretty leading-relaxed text-muted-foreground">
-          The Model Context Protocol is an open standard for wiring AI assistants to the tools and
-          data they act on. Anthropic published it in late 2024 and gave it away; Claude, ChatGPT,
-          Cursor, and most agent tooling speak it now.
+          The Model Context Protocol is an open standard that lets an AI assistant use your apps
+          and services for you. Anthropic published it in late 2024 and gave it away; Claude,
+          ChatGPT, Cursor, and most AI tools speak it now.
         </p>
 
         <Heading>Why it exists</Heading>
         <p className="mt-3 text-pretty leading-relaxed text-muted-foreground">
-          Before it, every assistant needed its own integration with every service — an
-          N&times;M problem where nothing built for one tool carried over to the next. MCP collapses
-          that into one interface. Build a server once and every client that speaks the protocol can
-          use it.
+          Before it, every assistant had to be wired up to every service one pair at a time, and
+          the work done for one assistant was no use to the next. MCP replaces all of that with a
+          single shared standard. Build one server, and every app that speaks the protocol can use
+          it.
         </p>
 
         <Heading>How a connection works</Heading>
         <p className="mt-3 text-pretty leading-relaxed text-muted-foreground">
           A <em className="not-italic text-foreground">client</em> is the app you talk to. A{" "}
-          <em className="not-italic text-foreground">server</em> is a program that exposes
-          capabilities — tools it can run, resources it can read. The client asks the server what it
-          offers, the model decides when to call something, and results come back into the
-          conversation. You connect the two with a URL and an OAuth sign-in, the same way you would
-          authorize any other app.
+          <em className="not-italic text-foreground">server</em> is a program that offers it a set
+          of things it can do — actions it can take, information it can read. The client asks the
+          server what is on offer, the assistant picks what it needs while you talk, and the answer
+          comes back in the conversation. You connect the two with a URL and an OAuth sign-in, the
+          same way you would authorize any other app.
         </p>
 
         <Heading>Where LifeOS fits</Heading>
         <p className="mt-3 text-pretty leading-relaxed text-muted-foreground">
-          LifeOS is the server, standing in front of every inbox and calendar you own. Gmail,
-          Google Calendar, Outlook, and iCloud go in one side; a single endpoint comes out the
-          other. Your assistant connects once and
-          gets the whole set — nothing is copied or stored here, every call passes through to the
-          provider and back.
+          LifeOS is the server, sitting in front of every inbox and calendar you own. Gmail,
+          Google Calendar, Outlook, and iCloud go in one side; one URL comes out the other. Your
+          assistant connects once and gets all of them — nothing is copied or stored here, every
+          request passes straight through to the provider and back.
         </p>
 
         <ul className="mt-6 border-t">

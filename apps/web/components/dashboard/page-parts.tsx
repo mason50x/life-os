@@ -126,3 +126,12 @@ export function Stat({
     <div className={classes}>{body}</div>
   );
 }
+
+/**
+ * One placeholder block, held where content is still on its way. Square, like
+ * everything else here — the loading states are the real layout with these in
+ * the slots that wait on a read, not a different page.
+ */
+export function Bar({ className }: { className?: string }) {
+  return <div className={cn("bg-muted motion-safe:animate-pulse", className)} aria-hidden />;
+}

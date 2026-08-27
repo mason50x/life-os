@@ -87,7 +87,7 @@ export const account = z
   .string()
   .optional()
   .describe(
-    "Which connected account to act on, by email address. Optional when only one account is connected; required otherwise. Use the `account` value that came back on the message you're acting on.",
+    "Which connected account to act on: its email address, or the name list_accounts gives it. Optional when only one account is connected; required otherwise. Use the `account` value that came back on the message you're acting on.",
   );
 
 export const messageIds = z

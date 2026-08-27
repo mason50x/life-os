@@ -25,6 +25,7 @@ export function PendingButton({
   leadingWidth = "w-0",
   variant,
   size = "lg",
+  className,
 }: {
   href: string;
   children: React.ReactNode;
@@ -33,6 +34,7 @@ export function PendingButton({
   leadingWidth?: string;
   variant?: React.ComponentProps<typeof Button>["variant"];
   size?: React.ComponentProps<typeof Button>["size"];
+  className?: string;
 }) {
   const [pending, setPending] = useState(false);
 
@@ -40,7 +42,7 @@ export function PendingButton({
     <Button
       variant={variant}
       size={size}
-      className="gap-0"
+      className={cn("gap-0", className)}
       nativeButton={false}
       render={
         <Link href={href} aria-busy={pending} onClick={() => setPending(true)}>

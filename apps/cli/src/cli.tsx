@@ -116,6 +116,14 @@ accounts
   .option("--send-as <addresses>", "iCloud only — alias addresses, space separated")
   .action(act(cmd.accountsAdd));
 accounts
+  .command("rename <account> [name]")
+  .description("Rename an inbox — omit the name to restore the default")
+  .action(act(cmd.accountsRename));
+accounts
+  .command("calendar <account>")
+  .description("Add calendar to an inbox connected for mail — no password needed")
+  .action(act(cmd.accountsCalendar));
+accounts
   .command("remove <email>")
   .description("Disconnect an inbox")
   .action(act(cmd.accountsRemove));
