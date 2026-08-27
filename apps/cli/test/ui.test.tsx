@@ -103,7 +103,7 @@ describe("Accounts", () => {
     await settle();
     stdin.write("a");
     await settle();
-    expect(lastFrame()).toContain("Add an inbox");
+    expect(lastFrame()).toContain("Add an account");
     expect(lastFrame()).toContain("iCloud");
   });
 
@@ -112,7 +112,7 @@ describe("Accounts", () => {
     await settle();
     stdin.write("a");
     await settle();
-    expect(lastFrame()).not.toContain("Add an inbox");
+    expect(lastFrame()).not.toContain("Add an account");
   });
 
   it("makes disconnect type the address out, not press a key", async () => {

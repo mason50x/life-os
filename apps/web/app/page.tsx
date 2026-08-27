@@ -2,11 +2,11 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { withAuth } from "@workos-inc/authkit-nextjs";
 import {
+  CalendarDaysIcon,
   CommandLineIcon,
   InboxStackIcon,
   KeyIcon,
   LinkIcon,
-  PaperAirplaneIcon,
   ShieldCheckIcon,
 } from "@heroicons/react/24/outline";
 import { ConnectButton } from "@/components/ConnectButton";
@@ -22,8 +22,8 @@ import { cn } from "@/lib/utils";
 const steps = [
   {
     n: "01",
-    title: "Connect your inboxes",
-    body: "Sign in and link every Gmail, Outlook, and iCloud account you own — personal, work, all of them.",
+    title: "Connect your accounts",
+    body: "Sign in and link every Gmail, Outlook, and iCloud account you own. Google and iCloud bring their calendars along with their mail.",
   },
   {
     n: "02",
@@ -33,7 +33,7 @@ const steps = [
   {
     n: "03",
     title: "Just ask",
-    body: "“What did my landlord say last week?” Your AI searches every inbox at once and answers.",
+    body: "“What did my landlord say last week?” “Am I free Thursday afternoon?” Your AI reads every account at once and answers.",
   },
 ];
 
@@ -41,12 +41,17 @@ const features = [
   {
     icon: ShieldCheckIcon,
     title: "Nothing stored",
-    body: "LifeOS never stores your email. Every request passes straight through to Gmail, Outlook, or iCloud and comes straight back.",
+    body: "LifeOS never stores your email or your calendar. Every request passes straight through to Gmail, Google Calendar, Outlook, or iCloud and comes straight back.",
   },
   {
     icon: InboxStackIcon,
-    title: "Unlimited accounts",
-    body: "Connect as many inboxes as you like. They all meet behind one endpoint, searchable together or one at a time.",
+    title: "Every inbox, all of it",
+    body: "Search threads, read messages, manage labels, archive, draft, and send \u2014 the whole mailbox surface, across as many accounts as you like.",
+  },
+  {
+    icon: CalendarDaysIcon,
+    title: "Every calendar too",
+    body: "List calendars, find gaps that are actually free, create and move events, invite people, RSVP \u2014 across every connected account at once.",
   },
   {
     icon: LinkIcon,
@@ -56,12 +61,7 @@ const features = [
   {
     icon: KeyIcon,
     title: "Auth done properly",
-    body: "OAuth end to end with WorkOS AuthKit for Google and Microsoft; iCloud app-specific passwords stay encrypted. Credentials never reach your AI tools.",
-  },
-  {
-    icon: PaperAirplaneIcon,
-    title: "The full toolkit",
-    body: "Search threads, read messages, manage labels, archive, draft, and send — the whole inbox surface, exposed as MCP tools.",
+    body: "OAuth end to end with WorkOS AuthKit for Google and Microsoft; iCloud app-specific passwords stay encrypted. One consent screen covers mail and calendar, and credentials never reach your AI tools.",
   },
   {
     icon: CommandLineIcon,
@@ -111,11 +111,13 @@ export default async function Home() {
               <h1 className="text-balance text-5xl font-normal tracking-tighter sm:text-6xl xl:text-7xl">
                 Every inbox,
                 <br />
+                every calendar,
+                <br />
                 one connection.
               </h1>
               <p className="mt-6 max-w-xl text-pretty text-lg text-muted-foreground">
-                LifeOS turns your many email accounts into one MCP. One connection, persistent
-                across all your services.
+                LifeOS turns your email accounts and their calendars into one MCP. One
+                connection, persistent across all your services.
               </p>
               <div className="mt-10 flex flex-wrap items-center gap-3">
                 <ConnectButton />

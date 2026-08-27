@@ -15,8 +15,8 @@ const ORGANISES_BY: Record<Provider, "labels" | "folders"> = {
   icloud: "folders",
 };
 
-export function registerAccountTools({ server, session }: Kit) {
-  server.registerTool(
+export function registerAccountTools({ register, session }: Kit) {
+  register(
     "list_accounts",
     {
       title: "List connected accounts",
@@ -24,6 +24,8 @@ export function registerAccountTools({ server, session }: Kit) {
         "Start here. Lists every email account the user has connected to LifeOS, with its provider, whether it is usable right now, and whether it files mail by labels (Gmail) or folders (Outlook, iCloud). Every other tool acts on one of these accounts, and message ids are only valid on the account that produced them.",
       inputSchema: {},
       annotations: READ_ONLY,
+      surface: "core",
+      tier: "core",
     },
     handled(session, async (_args: Record<string, never>, s) => {
       const accounts = await s.listAccounts();
@@ -56,8 +58,8 @@ export function registerAccountTools({ server, session }: Kit) {
  * Labels and folders are part of the email surface, not the account surface —
  * a connection with no inbox linked has nothing to file mail into.
  */
-export function registerLabelTools({ server, session }: Kit) {
-  server.registerTool(
+export function registerLabelTools({ register, session }: Kit) {
+  register(
     "list_labels",
     {
       title: "List labels and folders",
@@ -65,6 +67,9 @@ export function registerLabelTools({ server, session }: Kit) {
         "Lists the places mail can be filed on one account: Gmail labels, or Outlook/iCloud folders. Call this before move_email or modify_labels — those need a label or folder id from here, not a display name.",
       inputSchema: { account },
       annotations: READ_ONLY,
+      surface: "email",
+      tier: "extended",
+      keywords: ["label", "folder", "mailbox", "categories", "organise"],
     },
     handled(session, async ({ account: acct }: { account?: string }, s) => {
       const email = await resolveAccount(s, acct);
@@ -77,7 +82,7 @@ export function registerLabelTools({ server, session }: Kit) {
     }),
   );
 
-  server.registerTool(
+  register(
     "create_label",
     {
       title: "Create a label or folder",
@@ -93,6 +98,9 @@ export function registerLabelTools({ server, session }: Kit) {
           ),
       },
       annotations: CREATES,
+      surface: "email",
+      tier: "extended",
+      keywords: ["label", "folder", "new folder", "organise"],
     },
     handled(session, async ({ account: acct, name }: { account?: string; name: string }, s) => {
       const email = await resolveAccount(s, acct);

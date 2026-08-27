@@ -2,10 +2,12 @@ export * from "./types";
 export * from "./oauth";
 export { GmailProvider } from "./providers/gmail";
 export { OutlookProvider } from "./providers/outlook";
+export { GoogleCalendarProvider } from "./providers/googleCalendar";
 
-import { EmailProvider, Provider } from "./types";
+import { CalendarProvider, EmailProvider, Provider, ProviderApiError } from "./types";
 import { GmailProvider } from "./providers/gmail";
 import { OutlookProvider } from "./providers/outlook";
+import { GoogleCalendarProvider } from "./providers/googleCalendar";
 
 /**
  * `getSecret` returns the credential the provider authenticates with: an OAuth
@@ -29,5 +31,35 @@ export async function createProvider(
       const { IcloudProvider } = await import("./providers/icloud");
       return new IcloudProvider(email, getSecret);
     }
+  }
+}
+
+/**
+ * The calendar half of the same account. `getSecret` is the identical closure
+ * `createProvider` takes — one connected account, one credential, two surfaces.
+ *
+ * The iCloud CalDAV client is loaded on demand for the same reason its IMAP
+ * sibling is; import it from `@lifeos/core/icloud-calendar` to construct it
+ * directly.
+ */
+export async function createCalendarProvider(
+  provider: Provider,
+  email: string,
+  getSecret: () => Promise<string>,
+  opts: { loginEmail?: string } = {},
+): Promise<CalendarProvider> {
+  switch (provider) {
+    case "gmail":
+      return new GoogleCalendarProvider(email, getSecret);
+    case "icloud": {
+      const { IcloudCalendarProvider } = await import("./providers/icloudCalendar");
+      return new IcloudCalendarProvider(email, getSecret, opts.loginEmail ?? email);
+    }
+    case "outlook":
+      throw new ProviderApiError(
+        "outlook",
+        501,
+        "LifeOS doesn't do Outlook calendars yet — only Google and Apple. The account's mail still works.",
+      );
   }
 }

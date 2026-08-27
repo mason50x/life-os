@@ -15,8 +15,8 @@ function isTextual(mimeType: string): boolean {
   );
 }
 
-export function registerAttachmentTools({ server, session }: Kit) {
-  server.registerTool(
+export function registerAttachmentTools({ register, session }: Kit) {
+  register(
     "list_attachments",
     {
       title: "List a message's attachments",
@@ -27,6 +27,9 @@ export function registerAttachmentTools({ server, session }: Kit) {
         message_id: z.string().describe("A message id from search_emails or get_thread."),
       },
       annotations: READ_ONLY,
+      surface: "email",
+      tier: "extended",
+      keywords: ["attachment", "file", "pdf", "document", "image"],
     },
     handled(
       session,
@@ -38,7 +41,7 @@ export function registerAttachmentTools({ server, session }: Kit) {
     ),
   );
 
-  server.registerTool(
+  register(
     "get_attachment",
     {
       title: "Read an attachment",
@@ -50,6 +53,9 @@ export function registerAttachmentTools({ server, session }: Kit) {
         attachment_id: z.string().describe("An attachment id from list_attachments or get_message."),
       },
       annotations: READ_ONLY,
+      surface: "email",
+      tier: "extended",
+      keywords: ["attachment", "download", "read file", "pdf", "image"],
     },
     handled(
       session,

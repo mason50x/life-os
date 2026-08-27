@@ -1,8 +1,8 @@
 import { LinkIcon } from "@heroicons/react/24/solid";
 import { mcpUrl as mcpEndpoint } from "@/lib/env";
-import { MCP_TOOL_GROUPS, MCP_TOOLS } from "@/lib/mcpTools";
+import { capabilitiesOf, groupsFor } from "@/lib/mcpTools";
 import { CopyButton } from "@/components/CopyButton";
-import { ProviderMark, providerLabel } from "@/components/dashboard/ProviderMark";
+import { CapabilityBadges, ProviderMark } from "@/components/dashboard/ProviderMark";
 import {
   PageBody,
   PageHeader,
@@ -23,6 +23,14 @@ export default async function McpConnection() {
   const { user } = await session();
   const accounts = await accountsOf(user.id);
   const mcpUrl = mcpEndpoint();
+
+  // What this connection really advertises, not the full catalogue — the
+  // endpoint gates on what the user has connected, so the page should too.
+  const groups = groupsFor(capabilitiesOf(accounts));
+  const extended = groups
+    .filter((g) => g.tier === "extended")
+    .reduce((n, g) => n + g.tools.length, 0);
+  const direct = groups.reduce((n, g) => n + g.tools.length, 0) - extended;
 
   return (
     <>
@@ -61,7 +69,7 @@ export default async function McpConnection() {
           <Panel className={accounts.length ? "grid sm:grid-cols-2" : undefined}>
             {accounts.length === 0 ? (
               <p className="px-5 py-6 text-sm text-muted-foreground">
-                Nothing connected yet — the endpoint works, it just has no inboxes to answer with.
+                Nothing connected yet — the endpoint works, it just has no accounts to answer with.
               </p>
             ) : (
               accounts.map((a, i) => (
@@ -71,9 +79,11 @@ export default async function McpConnection() {
                 >
                   <ProviderMark provider={a.provider} />
                   <span className="min-w-0 flex-1 truncate text-sm">{a.email}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {a.status === "active" ? providerLabel[a.provider] : "Needs re-auth"}
-                  </span>
+                  {a.status === "active" ? (
+                    <CapabilityBadges capabilities={a.capabilities} />
+                  ) : (
+                    <span className="text-xs text-muted-foreground">Needs re-auth</span>
+                  )}
                 </div>
               ))
             )}
@@ -82,13 +92,20 @@ export default async function McpConnection() {
 
         <Section
           title="Tools on the wire"
-          action={<span className="text-xs text-muted-foreground">{MCP_TOOLS.length} tools</span>}
+          action={
+            <span className="text-xs text-muted-foreground">
+              {extended ? `${direct} advertised · ${extended} via find_tools` : `${direct} tools`}
+            </span>
+          }
         >
           <div className="space-y-5">
-            {MCP_TOOL_GROUPS.map((group) => (
+            {groups.map((group) => (
               <div key={group.title}>
-                <p className="mb-2 font-mono text-xs tracking-widest text-muted-foreground uppercase">
+                <p className="mb-2 flex items-center gap-2 font-mono text-xs tracking-widest text-muted-foreground uppercase">
                   {group.title}
+                  {group.tier === "extended" && (
+                    <span className="normal-case tracking-normal">via find_tools</span>
+                  )}
                 </p>
                 <Panel className="grid sm:grid-cols-2">
                   {group.tools.map(([name, what], i) => (
@@ -103,11 +120,28 @@ export default async function McpConnection() {
           </div>
         </Section>
 
+        <Section title="Narrower endpoints">
+          <Panel className="grid sm:grid-cols-2">
+            {[
+              { url: `${mcpUrl}/email`, note: "Mail only — nothing calendar." },
+              { url: `${mcpUrl}/calendar`, note: "Calendar only — nothing mail." },
+            ].map((entry, i) => (
+              <div key={entry.url} className={cn("px-5 py-3", cellBorders(i, 2))}>
+                <code className="font-mono text-sm break-all">{entry.url}</code>
+                <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{entry.note}</p>
+              </div>
+            ))}
+          </Panel>
+        </Section>
+
         <p className="text-xs leading-relaxed text-muted-foreground">
-          A client only sees the tools your connected inboxes can answer — connect one and the rest
-          appear. You&rsquo;ll sign in with your LifeOS account the first time a client connects —
-          OAuth through WorkOS AuthKit, and your mail credentials never reach the client. Revoking a
-          client&rsquo;s access, or disconnecting an inbox, takes effect on the next call.
+          A client only sees the tools your connected accounts can answer — connect one and the rest
+          appear. The everyday tools are advertised directly; the rest stay one <code>find_tools</code>{" "}
+          call away, so a conversation doesn&rsquo;t carry forty schemas it isn&rsquo;t using. Append{" "}
+          <code>?tools=all</code> to the endpoint if you&rsquo;d rather have them all listed.
+          You&rsquo;ll sign in with your LifeOS account the first time a client connects — OAuth
+          through WorkOS AuthKit, and your account credentials never reach the client. Revoking a
+          client&rsquo;s access, or disconnecting an account, takes effect on the next call.
         </p>
       </PageBody>
     </>

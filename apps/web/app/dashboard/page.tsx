@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   ArrowPathIcon,
+  CalendarDaysIcon,
   CheckCircleIcon,
   ExclamationTriangleIcon,
   InboxIcon,
@@ -8,7 +9,13 @@ import {
 } from "@heroicons/react/24/outline";
 import { HomeIcon } from "@heroicons/react/24/solid";
 import { AddAccountMenu } from "@/components/dashboard/AddAccountMenu";
-import { ProviderMark, connectHref, providerLabel } from "@/components/dashboard/ProviderMark";
+import {
+  CapabilityBadges,
+  ProviderMark,
+  connectHref,
+  providerCapabilities,
+  providerLabel,
+} from "@/components/dashboard/ProviderMark";
 import {
   PageBody,
   PageHeader,
@@ -30,6 +37,7 @@ export default async function Home({
   const [{ user }, params] = await Promise.all([session(), searchParams]);
   const [accounts, keys] = await Promise.all([accountsOf(user.id), keysOf(user.id)]);
   const providers = [...new Set(accounts.map((a) => providerLabel[a.provider]))];
+  const calendars = accounts.filter((a) => a.capabilities.includes("calendar")).length;
 
   return (
     <>
@@ -43,7 +51,7 @@ export default async function Home({
         {/* The three numbers worth glancing at, two of them a way through. */}
         <Panel className="grid sm:grid-cols-3">
           <Stat
-            label="Inboxes"
+            label="Accounts"
             value={String(accounts.length)}
             note={providers.length ? providers.join(" · ") : "Nothing connected"}
           />
@@ -64,20 +72,31 @@ export default async function Home({
           />
         </Panel>
 
-        <Section id="inboxes" title="Inboxes">
+        <Section
+          id="inboxes"
+          title="Accounts"
+          action={
+            accounts.length ? (
+              <span className="text-xs text-muted-foreground">
+                {calendars} with calendar
+              </span>
+            ) : undefined
+          }
+        >
           <Panel>
             {accounts.length === 0 ? (
               <div className="flex flex-col items-center px-5 py-14 text-center">
                 <InboxIcon className="size-6 text-muted-foreground" aria-hidden />
                 <p className="mt-4 text-sm">No accounts yet</p>
                 <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-                  Connect your first inbox and your AI client can search it a minute later.
+                  Connect your first account and your AI client can search its mail and read its
+                  calendar a minute later.
                 </p>
                 <div className="mt-6">
                   <AddAccountMenu align="center">
                     <Button type="button">
                       <PlusIcon data-icon="inline-start" />
-                      Connect an inbox
+                      Connect an account
                     </Button>
                   </AddAccountMenu>
                 </div>
@@ -100,7 +119,22 @@ export default async function Home({
                       {new Date(a.connectedAt).toLocaleDateString()}
                     </p>
                   </div>
-                  {a.status === "active" ? (
+                  <CapabilityBadges capabilities={a.capabilities} className="hidden sm:flex" />
+                  {/* An account linked before calendar existed holds a mail-only
+                      grant. Reconnecting is additive — the same flow, one more tick. */}
+                  {a.status === "active" &&
+                  !a.capabilities.includes("calendar") &&
+                  providerCapabilities[a.provider].includes("calendar") ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      nativeButton={false}
+                      render={<a href={connectHref(a.provider)} />}
+                    >
+                      <CalendarDaysIcon data-icon="inline-start" />
+                      Enable calendar
+                    </Button>
+                  ) : a.status === "active" ? (
                     <span className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:flex">
                       <span className="size-1.5 rounded-full bg-foreground" aria-hidden />
                       Active

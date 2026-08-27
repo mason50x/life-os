@@ -8,8 +8,8 @@ interface BatchArgs {
   message_ids: string[];
 }
 
-export function registerOrganizeTools({ server, session }: Kit) {
-  server.registerTool(
+export function registerOrganizeTools({ register, session }: Kit) {
+  register(
     "archive_email",
     {
       title: "Archive messages",
@@ -17,6 +17,8 @@ export function registerOrganizeTools({ server, session }: Kit) {
         "Takes messages out of the inbox while leaving them in the account — Gmail drops the INBOX label, Outlook and iCloud move to Archive. The everyday way to clear an inbox; nothing is deleted and search still finds them.",
       inputSchema: { account, message_ids: messageIds },
       annotations: REVERSIBLE,
+      surface: "email",
+      tier: "core",
     },
     handled(session, async ({ account: acct, message_ids }: BatchArgs, s) => {
       const email = await resolveAccount(s, acct);
@@ -25,7 +27,7 @@ export function registerOrganizeTools({ server, session }: Kit) {
     }),
   );
 
-  server.registerTool(
+  register(
     "trash_email",
     {
       title: "Move messages to trash",
@@ -33,6 +35,8 @@ export function registerOrganizeTools({ server, session }: Kit) {
         "Moves messages to the trash, where the user can still get them back with untrash_email until the provider empties it. Never a permanent delete. Prefer archive_email when the user just wants them out of the inbox; confirm before trashing anything they haven't explicitly pointed at.",
       inputSchema: { account, message_ids: messageIds },
       annotations: DESTRUCTIVE,
+      surface: "email",
+      tier: "core",
     },
     handled(session, async ({ account: acct, message_ids }: BatchArgs, s) => {
       const email = await resolveAccount(s, acct);
@@ -41,7 +45,7 @@ export function registerOrganizeTools({ server, session }: Kit) {
     }),
   );
 
-  server.registerTool(
+  register(
     "untrash_email",
     {
       title: "Restore messages from trash",
@@ -49,6 +53,9 @@ export function registerOrganizeTools({ server, session }: Kit) {
         "Pulls messages back out of the trash. Gmail returns them to the labels they had; Outlook and iCloud keep no record of where a message came from, so it lands in the inbox. Find trashed messages with search_emails and in: \"trash\".",
       inputSchema: { account, message_ids: messageIds },
       annotations: REVERSIBLE,
+      surface: "email",
+      tier: "extended",
+      keywords: ["untrash", "restore", "recover", "undelete"],
     },
     handled(session, async ({ account: acct, message_ids }: BatchArgs, s) => {
       const email = await resolveAccount(s, acct);
@@ -57,7 +64,7 @@ export function registerOrganizeTools({ server, session }: Kit) {
     }),
   );
 
-  server.registerTool(
+  register(
     "mark_read",
     {
       title: "Mark messages read or unread",
@@ -69,6 +76,9 @@ export function registerOrganizeTools({ server, session }: Kit) {
         read: z.boolean().default(true).describe("true marks read, false marks unread."),
       },
       annotations: REVERSIBLE,
+      surface: "email",
+      tier: "extended",
+      keywords: ["read", "unread", "seen", "triage"],
     },
     handled(
       session,
@@ -84,7 +94,7 @@ export function registerOrganizeTools({ server, session }: Kit) {
     ),
   );
 
-  server.registerTool(
+  register(
     "star_email",
     {
       title: "Star or unstar messages",
@@ -96,6 +106,9 @@ export function registerOrganizeTools({ server, session }: Kit) {
         starred: z.boolean().default(true).describe("true stars, false removes the star."),
       },
       annotations: REVERSIBLE,
+      surface: "email",
+      tier: "extended",
+      keywords: ["star", "flag", "important", "shortlist"],
     },
     handled(
       session,
@@ -111,7 +124,7 @@ export function registerOrganizeTools({ server, session }: Kit) {
     ),
   );
 
-  server.registerTool(
+  register(
     "mark_spam",
     {
       title: "Mark messages as spam, or not spam",
@@ -126,6 +139,9 @@ export function registerOrganizeTools({ server, session }: Kit) {
           .describe("true files as spam, false restores to the inbox."),
       },
       annotations: DESTRUCTIVE,
+      surface: "email",
+      tier: "extended",
+      keywords: ["spam", "junk", "phishing", "not spam"],
     },
     handled(
       session,
@@ -141,7 +157,7 @@ export function registerOrganizeTools({ server, session }: Kit) {
     ),
   );
 
-  server.registerTool(
+  register(
     "move_email",
     {
       title: "File messages under a label or folder",
@@ -155,6 +171,9 @@ export function registerOrganizeTools({ server, session }: Kit) {
           .describe("Label or folder id from list_labels. Create one first with create_label if it doesn't exist."),
       },
       annotations: REVERSIBLE,
+      surface: "email",
+      tier: "extended",
+      keywords: ["move", "file", "folder", "label", "organise"],
     },
     handled(
       session,
@@ -170,7 +189,7 @@ export function registerOrganizeTools({ server, session }: Kit) {
     ),
   );
 
-  server.registerTool(
+  register(
     "modify_labels",
     {
       title: "Add or remove Gmail labels",
@@ -183,6 +202,9 @@ export function registerOrganizeTools({ server, session }: Kit) {
         remove: z.array(z.string()).default([]).describe("Label ids to remove."),
       },
       annotations: REVERSIBLE,
+      surface: "email",
+      tier: "extended",
+      keywords: ["label", "tag", "relabel", "gmail"],
     },
     handled(
       session,

@@ -1,4 +1,4 @@
-import { OAuthProvider } from "./types";
+import { Capability, OAuthProvider } from "./types";
 
 export interface TokenResponse {
   access_token: string;
@@ -7,15 +7,41 @@ export interface TokenResponse {
   scope?: string;
 }
 
+/** Full Gmail access: read, search, send, drafts, labels, archive, trash, delete. */
+export const GOOGLE_MAIL_SCOPE = "https://mail.google.com/";
+
+/**
+ * Read, write, share and delete on every calendar the user can reach. The
+ * narrower calendar.events scope can't list calendars, which every write tool
+ * needs first, so there is no useful middle ground.
+ */
+export const GOOGLE_CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar";
+
 export const GOOGLE_SCOPES = [
-  // Full Gmail access: read, search, send, drafts, labels, archive, trash, delete
-  "https://mail.google.com/",
+  GOOGLE_MAIL_SCOPE,
   // Filters, vacation responder, and other mailbox settings
   "https://www.googleapis.com/auth/gmail.settings.basic",
+  GOOGLE_CALENDAR_SCOPE,
   "openid",
   "email",
   "profile",
 ].join(" ");
+
+/**
+ * What a grant actually permits, read from the scopes Google returned rather
+ * than the ones we asked for — a user can untick calendar on the consent
+ * screen, and an account linked before calendar existed has a mail-only
+ * refresh token until it is reconnected.
+ */
+export function capabilitiesFromScopes(scope: string | string[] | undefined): Capability[] {
+  const granted = new Set(
+    (Array.isArray(scope) ? scope : (scope ?? "").split(" ")).filter(Boolean),
+  );
+  const capabilities: Capability[] = [];
+  if (granted.has(GOOGLE_MAIL_SCOPE)) capabilities.push("email");
+  if (granted.has(GOOGLE_CALENDAR_SCOPE)) capabilities.push("calendar");
+  return capabilities;
+}
 
 export const MICROSOFT_SCOPES = [
   "offline_access",
@@ -38,6 +64,9 @@ export function googleAuthUrl(clientId: string, redirectUri: string, state: stri
     scope: GOOGLE_SCOPES,
     access_type: "offline",
     prompt: "consent",
+    // Additive re-consent: someone who linked their inbox before calendar
+    // existed keeps the mail grant they already gave rather than trading it in.
+    include_granted_scopes: "true",
     state,
   });
   return `https://accounts.google.com/o/oauth2/v2/auth?${params}`;

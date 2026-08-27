@@ -2,7 +2,7 @@ import { Box, Text, useInput } from "ink";
 import { useCallback, useEffect, useState } from "react";
 import { Hint, ScreenTitle, Spinner } from "../ui/components.js";
 import { theme } from "../ui/theme.js";
-import { PROVIDER_LABEL } from "../lib/types.js";
+import { PROVIDER_LABEL, capabilityLabel } from "../lib/types.js";
 import type { ScreenProps } from "./types.js";
 
 export const DOCTOR_KEYS = "r run again";
@@ -49,7 +49,7 @@ export function Doctor({ client, focused }: ScreenProps) {
     const initial: Check[] = [
       ...accounts.map((a) => ({
         label: a.email,
-        note: PROVIDER_LABEL[a.provider],
+        note: `${PROVIDER_LABEL[a.provider]} · ${capabilityLabel(a)}`,
         state: "pending" as const,
       })),
       { label: "MCP endpoint", note: mcp?.url, state: "pending" as const },

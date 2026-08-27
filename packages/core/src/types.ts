@@ -3,6 +3,13 @@ export type Provider = "gmail" | "outlook" | "icloud";
 /** Providers connected via OAuth (iCloud uses an app-specific password instead). */
 export type OAuthProvider = Exclude<Provider, "icloud">;
 
+/**
+ * What one connected account can actually be used for. A Google grant carries
+ * both when the user consented to calendar alongside mail; an account linked
+ * before calendar existed carries only "email" until it is reconnected.
+ */
+export type Capability = "email" | "calendar";
+
 export interface ConnectedAccount {
   id: string;
   userId: string;
@@ -10,6 +17,8 @@ export interface ConnectedAccount {
   email: string;
   displayName?: string;
   status: "active" | "needs_reauth" | "disconnected";
+  /** Never empty: an account with nothing usable would not be stored. */
+  capabilities: Capability[];
   connectedAt: number;
 }
 
@@ -132,6 +141,141 @@ export interface EmailProvider {
   deleteDraft(draftId: string): Promise<void>;
   listAttachments(messageId: string): Promise<Attachment[]>;
   getAttachment(messageId: string, attachmentId: string): Promise<AttachmentContent>;
+}
+
+export interface Calendar {
+  id: string;
+  account: string;
+  provider: Provider;
+  name: string;
+  description?: string;
+  /** IANA zone the calendar's floating times are interpreted in. */
+  timeZone?: string;
+  color?: string;
+  isPrimary?: boolean;
+  /** The user can read this calendar but not write to it (a shared feed). */
+  readOnly?: boolean;
+}
+
+/**
+ * An event boundary. All-day events carry `date` (YYYY-MM-DD) and timed ones
+ * carry `dateTime`; the two are never both set. Keeping them apart rather than
+ * normalising everything to an instant is what makes "all day on the 3rd" stay
+ * the 3rd when it crosses a timezone.
+ */
+export interface EventTime {
+  dateTime?: string;
+  date?: string;
+  timeZone?: string;
+}
+
+export type AttendeeResponse = "accepted" | "declined" | "tentative" | "needsAction";
+
+export interface Attendee {
+  email: string;
+  name?: string;
+  response: AttendeeResponse;
+  optional?: boolean;
+  organizer?: boolean;
+  /** This is the connected user — the one whose RSVP respond_to_event sets. */
+  self?: boolean;
+}
+
+export interface CalendarEvent {
+  id: string;
+  calendarId: string;
+  account: string;
+  provider: Provider;
+  summary: string;
+  description?: string;
+  location?: string;
+  start: EventTime;
+  end: EventTime;
+  allDay: boolean;
+  status: "confirmed" | "tentative" | "cancelled";
+  organizer?: EmailAddress;
+  attendees?: Attendee[];
+  /** Raw RRULE/EXDATE lines, as the provider states them. */
+  recurrence?: string[];
+  /** Set on one occurrence of a series; points at the series' own id. */
+  recurringEventId?: string;
+  url?: string;
+  /** A video-call link pulled out of the provider's conferencing data. */
+  conferencing?: string;
+  /** Minutes before the start, one entry per reminder. */
+  reminders?: number[];
+  myResponse?: AttendeeResponse;
+  created?: string;
+  updated?: string;
+  /** Concurrency token; CalDAV writes send it back as If-Match. */
+  etag?: string;
+}
+
+export interface EventInput {
+  summary: string;
+  description?: string;
+  location?: string;
+  start: EventTime;
+  end: EventTime;
+  attendees?: { email: string; name?: string; optional?: boolean }[];
+  recurrence?: string[];
+  reminders?: number[];
+  /** Ask the provider to attach a video call (Google Meet). */
+  addConferencing?: boolean;
+}
+
+/** Which occurrences of a recurring event a write applies to. */
+export type RecurrenceScope = "this" | "following" | "all";
+
+export interface BusyBlock {
+  start: string;
+  end: string;
+  calendarId?: string;
+  account?: string;
+}
+
+export interface ListEventsOptions {
+  /** Omit to cover every calendar the account can see. */
+  calendarIds?: string[];
+  /** ISO 8601 window. Both ends required — an unbounded query is unaffordable. */
+  from: string;
+  to: string;
+  maxResults?: number;
+}
+
+export interface CalendarProvider {
+  readonly provider: Provider;
+  readonly email: string;
+  listCalendars(): Promise<Calendar[]>;
+  listEvents(opts: ListEventsOptions): Promise<CalendarEvent[]>;
+  getEvent(calendarId: string, eventId: string): Promise<CalendarEvent>;
+  searchEvents(query: string, opts: ListEventsOptions): Promise<CalendarEvent[]>;
+  createEvent(calendarId: string, input: EventInput): Promise<CalendarEvent>;
+  /**
+   * Patch semantics: fields left undefined keep their current value, and
+   * properties this codebase doesn't model survive untouched.
+   */
+  updateEvent(
+    calendarId: string,
+    eventId: string,
+    patch: Partial<EventInput>,
+    scope?: RecurrenceScope,
+  ): Promise<CalendarEvent>;
+  deleteEvent(calendarId: string, eventId: string, scope?: RecurrenceScope): Promise<void>;
+  respondToEvent(
+    calendarId: string,
+    eventId: string,
+    response: Exclude<AttendeeResponse, "needsAction">,
+    comment?: string,
+  ): Promise<void>;
+  moveEvent(calendarId: string, eventId: string, toCalendarId: string): Promise<CalendarEvent>;
+  freeBusy(opts: { calendarIds?: string[]; from: string; to: string }): Promise<BusyBlock[]>;
+  createCalendar(name: string, opts?: { description?: string; timeZone?: string }): Promise<Calendar>;
+  updateCalendar(
+    calendarId: string,
+    patch: { name?: string; description?: string; color?: string },
+  ): Promise<Calendar>;
+  deleteCalendar(calendarId: string): Promise<void>;
 }
 
 export class ProviderApiError extends Error {

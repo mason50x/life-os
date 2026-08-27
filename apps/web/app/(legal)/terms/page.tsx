@@ -13,7 +13,7 @@ const sections = [
   { id: "what-lifeos-is", title: "What LifeOS is" },
   { id: "eligibility", title: "Who can use it" },
   { id: "account", title: "Your account and API keys" },
-  { id: "mailboxes", title: "Your mailboxes, your authority" },
+  { id: "mailboxes", title: "Your accounts, your authority" },
   { id: "ai-clients", title: "AI clients act as you" },
   { id: "acceptable-use", title: "Acceptable use" },
   { id: "providers", title: "Your providers’ rules still apply" },
@@ -39,7 +39,7 @@ export default function TermsOfService() {
         effective="25 August 2026"
         summary={[
           <>
-            Connect mailboxes you actually own or are authorised to use, and don&rsquo;t use LifeOS
+            Connect accounts you actually own or are authorised to use, and don&rsquo;t use LifeOS
             to send spam or break the law.
           </>,
           <>
@@ -81,14 +81,16 @@ export default function TermsOfService() {
 
       <Section id="what-lifeos-is" n={2} title="What LifeOS is">
         <p>
-          LifeOS connects the email accounts you own to AI clients that speak the Model Context
-          Protocol. You link your inboxes once, and LifeOS gives your client a single endpoint that
-          can search, read, draft, send, label, archive, and trash mail across all of them.
+          LifeOS connects the email and calendar accounts you own to AI clients that speak the
+          Model Context Protocol. You link your accounts once, and LifeOS gives your client a single
+          endpoint that can search, read, draft, send, label, archive, and trash mail across all of
+          them, and — where the account grants it — list calendars, read events, create and change
+          them, and respond to invitations.
         </p>
         <p>
-          LifeOS is a conduit. It does not host your mailbox, it is not your email provider, and it
-          does not store your messages. It carries requests to Google, Microsoft, and Apple and
-          carries their answers back.
+          LifeOS is a conduit. It does not host your mailbox or your calendar, it is not your email
+          or calendar provider, and it does not store your messages or your events. It carries
+          requests to Google, Microsoft, and Apple and carries their answers back.
         </p>
       </Section>
 
@@ -120,24 +122,27 @@ export default function TermsOfService() {
         </p>
       </Section>
 
-      <Section id="mailboxes" n={5} title="Your mailboxes, your authority">
+      <Section id="mailboxes" n={5} title="Your accounts, your authority">
         <p>
-          You may only connect mailboxes you own or are authorised to access. If you connect a work
-          account, you are confirming that your employer permits it and that you have any approval
-          your organisation requires. If you lose that authority, disconnect the account.
+          You may only connect accounts you own or are authorised to access — mailboxes and
+          calendars alike. If you connect a work account, you are confirming that your employer
+          permits it and that you have any approval your organisation requires. If you lose that
+          authority, disconnect the account.
         </p>
         <p>
-          You can disconnect any mailbox at any time from the dashboard or the CLI, and you can
+          You can disconnect any account at any time from the dashboard or the CLI, and you can
           revoke our access at your provider independently. Doing either ends our ability to reach
-          that mailbox.
+          that account, on either surface.
         </p>
       </Section>
 
       <Section id="ai-clients" n={6} title="AI clients act as you">
         <p>
           When you connect an AI client to LifeOS, that client can take real, irreversible actions
-          in your mailboxes. It can send a message to a real person. It can archive, trash, or
-          delete mail. It can create filters and set an auto-responder.
+          in your mailboxes and your calendars. It can send a message to a real person. It can
+          archive, trash, or delete mail. It can create filters and set an auto-responder. It can
+          put an event in your diary, email invitations to the guests, move a meeting, or cancel
+          one.
         </p>
         <p>
           <strong>
@@ -164,8 +169,8 @@ export default function TermsOfService() {
           <li>impersonate anyone, or send mail from an address you are not entitled to use;</li>
           <li>break the law, infringe anyone&rsquo;s rights, or harass, threaten, or harm people;</li>
           <li>
-            access mailboxes belonging to someone else without their informed permission, including
-            monitoring another person&rsquo;s mail covertly;
+            access mailboxes or calendars belonging to someone else without their informed
+            permission, including monitoring another person&rsquo;s mail or whereabouts covertly;
           </li>
           <li>
             attack the Service or the infrastructure behind it — probing, scraping at volume,
@@ -189,7 +194,7 @@ export default function TermsOfService() {
       <Section id="providers" n={8} title="Your providers’ rules still apply">
         <p>
           Using LifeOS does not exempt you from the terms of Google, Microsoft, Apple, or whoever
-          hosts your mail. Their rules — including their acceptable-use, sending, and API policies —
+          hosts your mail and your calendar. Their rules — including their acceptable-use, sending, and API policies —
           apply to everything done through LifeOS in your name. If a provider suspends or limits
           your account, the parts of LifeOS that depend on it will stop working, and that is between
           you and them.
@@ -254,7 +259,7 @@ export default function TermsOfService() {
 
       <Section id="termination" n={13} title="Suspension and termination">
         <p>
-          You can stop at any time: disconnect your mailboxes, revoke your keys, and ask us to
+          You can stop at any time: disconnect your accounts, revoke your keys, and ask us to
           delete your account at{" "}
           <a href="mailto:mason@cognify.design">mason@cognify.design</a>. Deletion works as described
           in the <Link href="/privacy">Privacy Policy</Link>.

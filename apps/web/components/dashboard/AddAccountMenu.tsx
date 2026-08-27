@@ -26,7 +26,7 @@ export function AddAccountMenu({
       <DropdownMenuTrigger render={children as React.ReactElement<Record<string, unknown>>} />
       <DropdownMenuContent align={align} side={side} className="w-56">
         <DropdownMenuGroup>
-          <DropdownMenuLabel>Connect an inbox</DropdownMenuLabel>
+          <DropdownMenuLabel>Connect an account</DropdownMenuLabel>
           {connectRoutes.map((r) => (
             <DropdownMenuItem
               key={r.provider}

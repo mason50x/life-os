@@ -4,7 +4,13 @@ import { Feedback, Field, Hint, ScreenTitle, Spinner, StatusDot, StatusText, Typ
 import { windowed } from "../ui/hooks.js";
 import { formatDate, theme } from "../ui/theme.js";
 import { openBrowser } from "../lib/platform.js";
-import { PROVIDER_LABEL, type Account, type Provider } from "../lib/types.js";
+import {
+  PROVIDER_CAPABILITIES,
+  PROVIDER_LABEL,
+  capabilityLabel,
+  type Account,
+  type Provider,
+} from "../lib/types.js";
 import type { ScreenProps } from "./types.js";
 
 export const ACCOUNTS_KEYS = "↑↓ move · a add · r reconnect · c check · d disconnect";
@@ -205,7 +211,7 @@ export function Accounts({ client, focused, height, onChanged }: ScreenProps) {
   if (mode.name === "picker") {
     return (
       <Box flexDirection="column">
-        <ScreenTitle title={mode.reconnect ? "Reconnect" : "Add an inbox"} />
+        <ScreenTitle title={mode.reconnect ? "Reconnect" : "Add an account"} />
         {PROVIDERS.map((p, i) => (
           <Box key={p}>
             <Text color={i === mode.index ? theme.accent : undefined}>
@@ -213,7 +219,9 @@ export function Accounts({ client, focused, height, onChanged }: ScreenProps) {
               {PROVIDER_LABEL[p]}
             </Text>
             <Hint>
-              {p === "icloud" ? "  app-specific password, right here" : "  opens your browser"}
+              {"  "}
+              {PROVIDER_CAPABILITIES[p].includes("calendar") ? "Mail · Calendar" : "Mail"}
+              {p === "icloud" ? " · app-specific password, right here" : " · opens your browser"}
             </Hint>
           </Box>
         ))}
@@ -339,7 +347,7 @@ export function Accounts({ client, focused, height, onChanged }: ScreenProps) {
   return (
     <Box flexDirection="column">
       <ScreenTitle
-        title="Inboxes"
+        title="Accounts"
         note={`${accounts.length} connected${start > 0 ? ` · showing ${start + 1}–${start + slice.length}` : ""}`}
       />
       {slice.map((account) => {
@@ -357,10 +365,21 @@ export function Accounts({ client, focused, height, onChanged }: ScreenProps) {
               <Text color={theme.muted}>
                 {" · "}
                 {PROVIDER_LABEL[account.provider]}
+                {" · "}
+                {capabilityLabel(account)}
                 {" · since "}
                 {formatDate(account.connectedAt)}
               </Text>
             </Box>
+            {/* A mail-only grant on a provider that has calendars: reconnecting
+                is additive, so this costs the person nothing but a browser tab. */}
+            {account.status === "active" &&
+              !account.capabilities?.includes("calendar") &&
+              PROVIDER_CAPABILITIES[account.provider].includes("calendar") && (
+                <Box paddingLeft={2}>
+                  <Hint>press r to add calendar — it keeps the mail access you already gave</Hint>
+                </Box>
+              )}
           </Box>
         );
       })}

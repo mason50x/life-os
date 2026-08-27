@@ -3,7 +3,9 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { withAuth } from "@workos-inc/authkit-nextjs";
 import {
+  Capability,
   OAuthProvider,
+  capabilitiesFromScopes,
   exchangeCode,
   fetchProfile,
   googleAuthUrl,
@@ -86,6 +88,7 @@ export async function finishConnect(provider: OAuthProvider, req: Request): Prom
       refreshTokenEnc: tokens.refresh_token ? encryptSecret(tokens.refresh_token) : undefined,
       accessTokenExpiresAt: Date.now() + tokens.expires_in * 1000,
       tokenClient: "connect",
+      ...grantedCapabilities(provider, tokens.scope),
     });
 
     const res = done(`connected=${encodeURIComponent(profile.email)}`);
@@ -98,11 +101,20 @@ export async function finishConnect(provider: OAuthProvider, req: Request): Prom
 }
 
 /**
- * The scope that makes a sign-in token usable as a connected mailbox. AuthKit
- * requests it only when the WorkOS Google provider is configured with it as a
- * custom scope; without it the returned token is identity-only and useless here.
+ * What to record the account as being good for. Google says so in the scopes
+ * it returns; Microsoft has no calendar support here yet, so an Outlook grant
+ * is mail and nothing else. A Google response with no scope field at all tells
+ * us nothing, and stores nothing rather than guessing a capability away.
  */
-const GMAIL_SCOPE = "https://mail.google.com/";
+function grantedCapabilities(
+  provider: OAuthProvider,
+  scope: string | undefined,
+): { capabilities?: Capability[]; grantedScopes?: string } {
+  if (provider !== "gmail") return { capabilities: ["email"] };
+  if (!scope) return {};
+  const capabilities = capabilitiesFromScopes(scope);
+  return capabilities.length ? { capabilities, grantedScopes: scope } : { grantedScopes: scope };
+}
 
 /**
  * The provider tokens WorkOS hands back from an AuthKit sign-in — minted by the
@@ -142,7 +154,11 @@ export async function connectFromSignIn(
   // refresh token means Google skipped consent (it only mints one on a new or
   // changed grant), and an hour-long access token with no way to renew is not
   // an account. Either way the user falls back to the normal connect flow.
-  if (!tokens.refreshToken || !tokens.scopes?.includes(GMAIL_SCOPE)) {
+  //
+  // Calendar rides along whenever the WorkOS Google provider carries that
+  // custom scope too; mail is what decides whether the account is adoptable.
+  const capabilities = capabilitiesFromScopes(tokens.scopes);
+  if (!tokens.refreshToken || !capabilities.includes("email")) {
     console.warn(
       `Sign-in tokens not adoptable — refreshToken: ${Boolean(tokens.refreshToken)}, scopes: ${tokens.scopes?.join(" ") ?? "none"}`,
     );
@@ -163,6 +179,8 @@ export async function connectFromSignIn(
       // Minted by the AuthKit sign-in client, not the connect client — refreshes
       // must go back to the same one.
       tokenClient: "authkit",
+      capabilities,
+      grantedScopes: tokens.scopes.join(" "),
     });
   } catch (e) {
     // A failed adoption is recoverable — the user can still connect by hand.

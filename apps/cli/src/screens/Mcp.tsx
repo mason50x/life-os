@@ -5,7 +5,7 @@ import { theme } from "../ui/theme.js";
 import { copyToClipboard, hasCommand } from "../lib/platform.js";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { PROVIDER_LABEL, type McpInfo } from "../lib/types.js";
+import { PROVIDER_LABEL, capabilityLabel, type McpInfo } from "../lib/types.js";
 import type { ScreenProps } from "./types.js";
 
 const run = promisify(execFile);
@@ -70,7 +70,7 @@ export function Mcp({ client, focused }: ScreenProps) {
 
   return (
     <Box flexDirection="column">
-      <ScreenTitle title="MCP connection" note={`${info.tools.length} tools`} />
+      <ScreenTitle title="MCP connection" note={toolNote(info)} />
 
       <Text color={theme.accent}>{info.url}</Text>
       <Box marginTop={1}>
@@ -84,13 +84,16 @@ export function Mcp({ client, focused }: ScreenProps) {
         <Text bold>Reaches</Text>
       </Box>
       {info.reaches.length === 0 ? (
-        <Hint>nothing yet — the endpoint works, it just has no inboxes to answer with</Hint>
+        <Hint>nothing yet — the endpoint works, it just has no accounts to answer with</Hint>
       ) : (
         info.reaches.map((a) => (
           <Box key={a.email}>
             <Text color={a.status === "active" ? theme.ok : theme.warn}>● </Text>
             <Text>{a.email}</Text>
-            <Hint> {PROVIDER_LABEL[a.provider]}</Hint>
+            <Hint>
+              {" "}
+              {PROVIDER_LABEL[a.provider]} · {capabilityLabel(a)}
+            </Hint>
           </Box>
         ))
       )}
@@ -104,4 +107,14 @@ export function Mcp({ client, focused }: ScreenProps) {
       )}
     </Box>
   );
+}
+
+/**
+ * Two numbers rather than one: the tools a client sees straight away, and the
+ * ones behind find_tools. "15 tools" would undersell the endpoint by half.
+ */
+function toolNote(info: McpInfo): string {
+  const extended = info.tools.filter((t) => t.tier === "extended").length;
+  const direct = info.tools.length - extended;
+  return extended ? `${direct} tools · ${extended} more via find_tools` : `${info.tools.length} tools`;
 }

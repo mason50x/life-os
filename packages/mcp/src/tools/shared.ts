@@ -1,12 +1,37 @@
-import { z } from "zod";
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { z, type ZodRawShape } from "zod";
 import { fail, explain, type ToolResult } from "../format";
-import type { LifeOsSession } from "../session";
+import type { LifeOsSession, Surface } from "../session";
 
 export type SessionFor = (extra: unknown) => Promise<LifeOsSession>;
 
+export type ToolHandler = (args: never, extra: unknown) => Promise<ToolResult>;
+
+export interface ToolMeta {
+  title: string;
+  description: string;
+  inputSchema: ZodRawShape;
+  annotations: Record<string, boolean>;
+  /** Which half of LifeOS this belongs to; "core" means always available. */
+  surface: Surface | "core";
+  /**
+   * "core" tools are advertised directly and cost context on every
+   * conversation. "extended" ones are reachable through find_tools and
+   * run_tool, which is where the long tail belongs: real power, no tax.
+   */
+  tier: "core" | "extended";
+  /** Words a model might search for that the description doesn't already say. */
+  keywords?: string[];
+}
+
+/**
+ * Tools declare themselves rather than registering themselves, so the same
+ * declaration can be advertised directly, hidden behind find_tools, or listed
+ * in the dashboard without three copies of the truth.
+ */
+export type RegisterTool = (name: string, meta: ToolMeta, handler: ToolHandler) => void;
+
 export interface Kit {
-  server: McpServer;
+  register: RegisterTool;
   session: SessionFor;
 }
 

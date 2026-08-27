@@ -78,9 +78,10 @@ export function McpReaderTrigger() {
 const tools = [
   ["search_emails", "One query across every connected inbox"],
   ["get_thread", "A full conversation, messages in order"],
-  ["create_draft", "Compose without sending"],
   ["send_email", "From whichever address fits"],
-  ["modify_labels", "Label, archive, mark read"],
+  ["list_events", "What's on, across every calendar"],
+  ["find_free_time", "Gaps that are actually free"],
+  ["create_event", "Book it, and invite the room"],
 ];
 
 function McpPanel() {
@@ -156,8 +157,9 @@ function McpPanel() {
 
         <Heading>Where LifeOS fits</Heading>
         <p className="mt-3 text-pretty leading-relaxed text-muted-foreground">
-          LifeOS is the server, standing in front of every inbox you own. Gmail, Outlook, and iCloud
-          go in one side; a single endpoint comes out the other. Your assistant connects once and
+          LifeOS is the server, standing in front of every inbox and calendar you own. Gmail,
+          Google Calendar, Outlook, and iCloud go in one side; a single endpoint comes out the
+          other. Your assistant connects once and
           gets the whole set — nothing is copied or stored here, every call passes through to the
           provider and back.
         </p>

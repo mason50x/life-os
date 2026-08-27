@@ -47,7 +47,7 @@ const steps = [
         Enter your <strong className="font-medium text-foreground">primary</strong> iCloud
         address and the password. Using iCloud+ custom domains? List those addresses too —
         one sign-in connects all of them. We verify with a live sign-in to Apple&apos;s mail
-        servers before saving anything.
+        and calendar servers before saving anything.
       </>
     ),
   },
@@ -81,12 +81,13 @@ export default async function ConnectICloud() {
           <Badge variant="outline">iCloud</Badge>
           <Badge variant="outline">No Apple developer account needed</Badge>
         </div>
-        <h1 className="text-4xl font-thin tracking-tight">Connect iCloud Mail</h1>
+        <h1 className="text-4xl font-thin tracking-tight">Connect iCloud</h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
           Apple doesn&apos;t offer &quot;Sign in with Apple&quot; for mail, so iCloud connects
           with an <strong className="font-medium text-foreground">app-specific password</strong>{" "}
-          — a revocable, mail-only password you create in about a minute. It never expires, so
-          you&apos;ll never see a re-auth prompt.
+          — a revocable password you create in about a minute. The one password reaches iCloud
+          Mail and iCloud Calendar, and it never expires, so you&apos;ll never see a re-auth
+          prompt.
         </p>
       </header>
 
@@ -136,8 +137,8 @@ export default async function ConnectICloud() {
       </div>
 
       <p className="mt-6 text-center text-xs text-muted-foreground">
-        Like every LifeOS connection, mail passes straight through to Apple — nothing is stored
-        on our side except the encrypted credential.
+        Like every LifeOS connection, mail and calendar pass straight through to Apple — nothing
+        is stored on our side except the encrypted credential.
       </p>
     </main>
   );

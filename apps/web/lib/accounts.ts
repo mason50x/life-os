@@ -1,8 +1,11 @@
 import {
+  CalendarProvider,
+  Capability,
   ConnectedAccount,
   EmailProvider,
   OAuthProvider,
   Provider,
+  createCalendarProvider,
   createProvider,
   refreshAccessToken,
 } from "@lifeos/core";
@@ -22,7 +25,18 @@ interface AccountDoc {
   refreshTokenEnc?: string;
   accessTokenExpiresAt: number;
   tokenClient?: "connect" | "authkit";
+  capabilities?: Capability[];
+  grantedScopes?: string;
   connectedAt: number;
+}
+
+/**
+ * Rows written before calendar existed carry no capabilities and are mail —
+ * which is all they were ever used for. They gain calendar the next time the
+ * user reconnects, so there is nothing to backfill.
+ */
+function capabilitiesOf(doc: AccountDoc): Capability[] {
+  return doc.capabilities?.length ? doc.capabilities : ["email"];
 }
 
 /**
@@ -58,14 +72,20 @@ export async function listAccounts(userId: string): Promise<ConnectedAccount[]> 
     email: d.email,
     displayName: d.displayName,
     status: d.status,
+    capabilities: capabilitiesOf(d),
     connectedAt: d.connectedAt,
   }));
 }
 
-export async function getProviderForAccount(
+/**
+ * The account row plus the closure that yields its live credential — an OAuth
+ * access token, refreshed when it's due, or the stored iCloud app-specific
+ * password. Both surfaces are built from this: one account, one credential.
+ */
+async function credentialsFor(
   userId: string,
   accountEmail: string,
-): Promise<EmailProvider> {
+): Promise<{ doc: AccountDoc; getSecret: () => Promise<string> }> {
   const doc = (await convex().query(api.accounts.getByUserEmail, {
     serviceKey: serviceKey(),
     userId,
@@ -81,14 +101,7 @@ export async function getProviderForAccount(
   // refresh. loginEmail (the primary iCloud address) signs in; doc.email is
   // the send-as address for custom-domain/alias accounts.
   if (doc.provider === "icloud") {
-    // Lazy: keeps the IMAP stack (imapflow/mailparser/nodemailer) out of the
-    // route's cold-start module graph.
-    const { IcloudProvider } = await import("@lifeos/core/icloud");
-    return new IcloudProvider(
-      doc.email,
-      async () => decryptSecret(doc.accessTokenEnc),
-      doc.loginEmail ?? doc.email,
-    );
+    return { doc, getSecret: async () => decryptSecret(doc.accessTokenEnc) };
   }
   const oauthProvider: OAuthProvider = doc.provider;
 
@@ -129,7 +142,37 @@ export async function getProviderForAccount(
     return tokens.access_token;
   };
 
-  return await createProvider(doc.provider, doc.email, getAccessToken);
+  return { doc, getSecret: getAccessToken };
+}
+
+export async function getProviderForAccount(
+  userId: string,
+  accountEmail: string,
+): Promise<EmailProvider> {
+  const { doc, getSecret } = await credentialsFor(userId, accountEmail);
+  if (doc.provider === "icloud") {
+    // Lazy: keeps the IMAP stack (imapflow/mailparser/nodemailer) out of the
+    // route's cold-start module graph.
+    const { IcloudProvider } = await import("@lifeos/core/icloud");
+    return new IcloudProvider(doc.email, getSecret, doc.loginEmail ?? doc.email);
+  }
+  return await createProvider(doc.provider, doc.email, getSecret);
+}
+
+export async function getCalendarForAccount(
+  userId: string,
+  accountEmail: string,
+): Promise<CalendarProvider> {
+  const { doc, getSecret } = await credentialsFor(userId, accountEmail);
+  if (!capabilitiesOf(doc).includes("calendar")) {
+    throw new Error(
+      `${doc.email} is connected for mail only. The user needs to reconnect it in the LifeOS ` +
+        `dashboard to grant calendar access — the same connect flow, one extra tick.`,
+    );
+  }
+  return await createCalendarProvider(doc.provider, doc.email, getSecret, {
+    loginEmail: doc.loginEmail,
+  });
 }
 
 export async function removeAccount(userId: string, id: string): Promise<void> {
@@ -154,7 +197,16 @@ export async function checkAccount(userId: string, email: string): Promise<Accou
   try {
     const provider = await getProviderForAccount(userId, email);
     const labels = await provider.listLabels();
-    return { ok: true, ms: Date.now() - started, detail: `${labels.length} folders reachable` };
+    const detail = [`${labels.length} folders reachable`];
+
+    // Calendar is a separate grant on the same credential, so it can fail on
+    // its own — a check that only proved mail would call that account healthy.
+    const accounts = await listAccounts(userId);
+    if (accounts.find((a) => a.email === email)?.capabilities.includes("calendar")) {
+      const calendars = await (await getCalendarForAccount(userId, email)).listCalendars();
+      detail.push(`${calendars.length} calendars reachable`);
+    }
+    return { ok: true, ms: Date.now() - started, detail: detail.join(", ") };
   } catch (e) {
     return { ok: false, ms: Date.now() - started, detail: e instanceof Error ? e.message : String(e) };
   }

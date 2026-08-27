@@ -1,4 +1,4 @@
-import type { ConnectedAccount, EmailProvider } from "@lifeos/core";
+import type { CalendarProvider, Capability, ConnectedAccount, EmailProvider } from "@lifeos/core";
 
 /**
  * Everything the tools need to act on behalf of one authenticated LifeOS user.
@@ -9,6 +9,8 @@ export interface LifeOsSession {
   listAccounts(): Promise<ConnectedAccount[]>;
   /** Resolve a connected account's email address to a live provider client. */
   providerFor(accountEmail: string): Promise<EmailProvider>;
+  /** The same account's calendar. Throws when the grant doesn't cover it. */
+  calendarFor(accountEmail: string): Promise<CalendarProvider>;
 }
 
 /** Auth info shape provided by the host's bearer-token verification (withMcpAuth). */
@@ -23,34 +25,52 @@ export type ResolveSession = (authInfo?: McpAuthInfo) => Promise<LifeOsSession>;
  * extending this union, registering its tools behind the same gate, and
  * teaching `surfacesForAccounts` how to detect it.
  */
-export type Surface = "email";
+export type Surface = "email" | "calendar";
 
-export const ALL_SURFACES: readonly Surface[] = ["email"];
+export const ALL_SURFACES: readonly Surface[] = ["email", "calendar"];
 
 /**
  * A tool is only worth advertising if the user has something for it to act on.
- * A Gmail-only user should never see calendar tools, and a user with nothing
- * connected sees only `list_accounts` — which tells them where to go next.
+ * A mail-only Gmail grant should never show calendar tools, and a user with
+ * nothing connected sees only `list_accounts` — which tells them where to go
+ * next.
  */
 export function surfacesForAccounts(accounts: ConnectedAccount[]): Surface[] {
-  const surfaces: Surface[] = [];
-  if (accounts.some((a) => a.status === "active")) surfaces.push("email");
-  return surfaces;
+  const active = accounts.filter((a) => a.status === "active");
+  return ALL_SURFACES.filter((surface) =>
+    active.some((a) => a.capabilities.includes(surface as Capability)),
+  );
 }
 
 export class ToolError extends Error {}
 
+/** What the user should be told to do when nothing can serve a capability. */
+const NOTHING_CONNECTED: Record<Capability, string> = {
+  email: "No email accounts are connected yet. The user needs to connect one in the LifeOS dashboard.",
+  calendar:
+    "No calendars are connected yet. Google and Apple accounts bring their calendar along with " +
+    "their mail — if the user connected an inbox before calendar support existed, reconnecting it " +
+    "in the LifeOS dashboard is all it takes.",
+};
+
 /**
- * Most people connect one inbox, so making `account` mandatory on every call
+ * Most people connect one account, so making `account` mandatory on every call
  * costs a round-trip to `list_accounts` for no information. Omitting it is
  * only ambiguous once there are two, and then the error says which.
+ *
+ * `capability` narrows the field to accounts that can actually serve the tool
+ * asking: with one calendar and three inboxes connected, a calendar tool
+ * shouldn't make the model choose between four.
  */
 export async function resolveAccount(
   session: LifeOsSession,
   requested: string | undefined,
+  capability: Capability = "email",
 ): Promise<string> {
   const accounts = await session.listAccounts();
-  const active = accounts.filter((a) => a.status === "active");
+  const usable = accounts.filter(
+    (a) => a.status === "active" && a.capabilities.includes(capability),
+  );
   if (requested) {
     const match = accounts.find((a) => a.email.toLowerCase() === requested.toLowerCase());
     if (!match) {
@@ -66,22 +86,32 @@ export async function resolveAccount(
           `user reconnects it in the LifeOS dashboard.`,
       );
     }
+    if (!match.capabilities.includes(capability)) {
+      throw new ToolError(
+        `${match.email} is connected for ${match.capabilities.join(" and ")} only, not ${capability}. ` +
+          `Reconnecting it in the LifeOS dashboard grants the rest in the same step.` +
+          (usable.length
+            ? ` Accounts that do have ${capability}: ${usable.map((a) => a.email).join(", ")}.`
+            : ""),
+      );
+    }
     return match.email;
   }
-  if (active.length === 1) return active[0].email;
-  if (active.length === 0) {
-    throw new ToolError(
-      "No email accounts are connected yet. The user needs to connect one in the LifeOS dashboard.",
-    );
-  }
+  if (usable.length === 1) return usable[0].email;
+  if (usable.length === 0) throw new ToolError(NOTHING_CONNECTED[capability]);
   throw new ToolError(
-    `More than one account is connected — pass \`account\` to say which: ${active
+    `More than one account has ${capability} — pass \`account\` to say which: ${usable
       .map((a) => a.email)
       .join(", ")}.`,
   );
 }
 
-/** Every active account, for tools that fan out when no account is named. */
-export async function activeAccounts(session: LifeOsSession): Promise<string[]> {
-  return (await session.listAccounts()).filter((a) => a.status === "active").map((a) => a.email);
+/** Every active account for a capability, for tools that fan out by default. */
+export async function activeAccounts(
+  session: LifeOsSession,
+  capability: Capability = "email",
+): Promise<string[]> {
+  return (await session.listAccounts())
+    .filter((a) => a.status === "active" && a.capabilities.includes(capability))
+    .map((a) => a.email);
 }

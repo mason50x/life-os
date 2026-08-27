@@ -7,9 +7,9 @@ import { ThemeProvider } from "@/components/theme-provider";
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
-  title: "LifeOS — every inbox, one connection",
+  title: "LifeOS — every inbox, every calendar, one connection",
   description:
-    "Connect all your Gmail and Outlook accounts and give Claude, ChatGPT, and any MCP client one secure connection to your entire email life.",
+    "Connect all your Gmail, Outlook, and iCloud accounts and give Claude, ChatGPT, and any MCP client one secure connection to your mail and your calendars.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

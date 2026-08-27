@@ -1,4 +1,4 @@
-import { ProviderApiError } from "@lifeos/core";
+import { Capability, ProviderApiError } from "@lifeos/core";
 import { api, convex, serviceKey } from "./convex";
 import { encryptSecret } from "./crypto";
 
@@ -63,6 +63,18 @@ export async function connectIcloudAccount(
     return { error: "Couldn't reach iCloud Mail to verify. Try again in a moment." };
   }
 
+  // The same app-specific password reaches iCloud Calendar over CalDAV, so
+  // there is nothing more to ask the user for — only something to confirm.
+  // A calendar that won't answer must never cost them their mail connection.
+  const capabilities: Capability[] = ["email"];
+  try {
+    const { IcloudCalendarProvider } = await import("@lifeos/core/icloud-calendar");
+    await IcloudCalendarProvider.verify(email, password);
+    capabilities.push("calendar");
+  } catch (e) {
+    console.warn(`iCloud connected for mail but not calendar (${email}):`, e);
+  }
+
   // One connected account per address: the primary (unless the user only
   // listed custom addresses) plus each send-as address, all sharing the same
   // credential and mailbox.
@@ -77,6 +89,7 @@ export async function connectIcloudAccount(
       accessTokenEnc: encryptSecret(password),
       // App-specific passwords don't expire, so there is no refresh flow.
       accessTokenExpiresAt: Number.MAX_SAFE_INTEGER,
+      capabilities,
     });
   }
   return { addresses };

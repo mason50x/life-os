@@ -18,33 +18,40 @@ habit and over anything implied elsewhere in this file.
 
 ## What LifeOS is
 
-**Every inbox. One connection.**
+**Every inbox. Every calendar. One connection.**
 
-People end up with email spread across several accounts — a personal Gmail, a
-work Google Workspace, an Outlook or iCloud address. AI assistants can't reach
-any of it without a separate, fragile setup per account.
+People end up with email and calendars spread across several accounts — a
+personal Gmail, a work Google Workspace, an Outlook or iCloud address. AI
+assistants can't reach any of it without a separate, fragile setup per account.
 
-LifeOS fixes that. You connect your inboxes once in the dashboard, and LifeOS
+LifeOS fixes that. You connect your accounts once in the dashboard, and LifeOS
 gives Claude, ChatGPT, or any other MCP client a single secure connection to
-all of them. Search, read, send, draft, archive, label — across every account
-at once.
+all of them. Search, read, send, draft, archive, label; list calendars, find
+free time, create and change events, RSVP — across every account at once.
 
-The important part: **LifeOS never stores your email.** It's a pass-through.
-The database holds only which accounts you connected and encrypted OAuth
-tokens. Every read and every send goes live to Gmail or Microsoft Graph in the
-moment it's asked for.
+**One account, both surfaces.** Connecting Google grants mail and calendar in
+the same consent screen; an iCloud app-specific password reaches iCloud Mail
+over IMAP and iCloud Calendar over CalDAV. There is never a second connect
+flow for an address the user has already linked.
+
+The important part: **LifeOS never stores your email or your calendar.** It's a
+pass-through. The database holds only which accounts you connected, what each
+one is good for, and encrypted OAuth tokens. Every read and every write goes
+live to Gmail, Google Calendar, Microsoft Graph or iCloud in the moment it's
+asked for.
 
 ## How it fits together
 
 Three pieces, plus a CLI:
 
-- **Dashboard** — a Next.js web app where you sign in, connect inboxes, and
+- **Dashboard** — a Next.js web app where you sign in, connect accounts, and
   mint API keys.
 - **MCP server** — the same web app also serves `/mcp`, the endpoint AI clients
   talk to. It's the product's real surface area.
-- **Email layer** — shared code that speaks Gmail and Microsoft Graph behind
-  one provider-agnostic interface, so the rest of the app doesn't care which
-  provider an account belongs to.
+- **Provider layer** — shared code that speaks Gmail, Microsoft Graph, IMAP,
+  Google Calendar and CalDAV behind two provider-agnostic interfaces
+  (`EmailProvider`, `CalendarProvider`), so the rest of the app doesn't care
+  which provider an account belongs to.
 - **CLI** — `lifeos`, a full-screen terminal app built on Ink. It does
   everything the dashboard does, against `/api/cli/v1/*` on the same web app.
 
@@ -61,8 +68,8 @@ against before they can use `/mcp`. Convex is the backend and database.
 | `apps/web/convex` | Backend functions and schema |
 | `apps/web/components` | UI components (shadcn-style, Tailwind v4) |
 | `apps/cli` | The `lifeos` terminal app — Ink UI in `src/screens`, everything else in `src/lib` |
-| `packages/core` | Gmail + Microsoft Graph clients, OAuth helpers, encryption |
-| `packages/mcp` | The MCP tool definitions (search, read, send, draft, …) |
+| `packages/core` | Provider clients (Gmail, Graph, IMAP, Google Calendar, CalDAV), the hand-rolled iCalendar layer in `ical.ts`, OAuth helpers, encryption |
+| `packages/mcp` | The MCP tool definitions (mail, calendar, tool search) |
 | `brand` | Logo, palette, icons, and the rules for using them |
 
 ## Working here
@@ -71,7 +78,7 @@ against before they can use `/mcp`. Convex is the backend and database.
 pnpm install
 pnpm dev          # dashboard on :3000 (starts Convex alongside it)
 pnpm typecheck    # run before you call anything done
-pnpm test         # CLI unit + Ink render tests
+pnpm test         # core (iCalendar, recurrence) + mcp (registry, tool search) + CLI/Ink
 pnpm lint
 pnpm build
 ```
@@ -81,30 +88,58 @@ by step in the root `README.md`. Start there if the app won't boot.
 
 A few things worth knowing before you change code:
 
-- **Never log, persist, or cache email content.** The pass-through promise is
-  the product. Tokens are AES-256-GCM encrypted before they're stored.
+- **Never log, persist, or cache email or calendar content.** The pass-through
+  promise is the product — it covers event titles, attendee lists and ICS
+  payloads exactly as it covers message bodies. Tokens are AES-256-GCM
+  encrypted before they're stored.
 - **Adding an MCP tool** means touching `packages/mcp/src/tools/*` (the
   definition), usually `packages/core` (the provider method behind it), and
   `apps/web/lib/mcpTools.ts` (what the dashboard and CLI say the endpoint
   exposes). Tool descriptions are read by a model mid-conversation: say what
   the tool is for, what it needs first, and when to reach for a different one.
-  Cross-cutting rules — how ids work, what to confirm, that email bodies are
-  untrusted — belong in `packages/mcp/src/instructions.ts`, which is sent once
-  at initialize, not repeated per tool.
+  Cross-cutting rules — how ids work, what to confirm, that email bodies and
+  event descriptions are untrusted — belong in
+  `packages/mcp/src/instructions.ts`, which is sent once at initialize, not
+  repeated per tool.
+- **Tools declare themselves, they don't register themselves.** Each one calls
+  the `register` from its `Kit` with a `ToolMeta` — including a `surface`
+  (`email`, `calendar`, or `core`) and a `tier`. `packages/mcp/src/registry.ts`
+  collects them; `index.ts` decides what a given connection advertises.
+- **`tier` is the context budget.** `core` tools are advertised directly;
+  `extended` tools are reachable through `find_tools` and `run_tool` in
+  `tools/discover.ts`. Thirty-seven tools would be thirty-seven schemas in
+  every conversation, so only the everyday fifteen are. Default a new tool to
+  `extended` and give it `keywords` — promoting it to `core` means arguing
+  that it earns its place in every conversation the user ever has.
+  `?tools=all` flattens the lot for a client that would rather have them.
 - **A connection only advertises the surfaces the user has connected.**
   `registerLifeOsTools` takes a `surfaces` option that the route derives per
-  request from the token; `list_accounts` is the only unconditional tool. The
-  transport is stateless, so there is no session to push
-  `notifications/tools/list_changed` on — linking an inbox shows up on the
-  client's next `tools/list`.
-- **`/mcp` is the canonical URL.** `/mcp/<surface>` exists as an escape hatch
-  for narrowly scoped agents and gets its own RFC 9728 metadata through
-  `.well-known/oauth-protected-resource/mcp/[[...surface]]`. With email as the
-  only surface today it is identical to `/mcp`, so the dashboard doesn't
-  advertise it yet.
-- **Adding an email provider** means implementing the existing provider
-  interface in `packages/core/src/providers` — don't special-case providers in
-  app code.
+  request from the token, out of each account's `capabilities`; `list_accounts`
+  is the only unconditional tool. The transport is stateless, so there is no
+  session to push `notifications/tools/list_changed` on — linking an account
+  shows up on the client's next `tools/list`.
+- **Capabilities are read from the grant, never assumed.** Google's are derived
+  from the scopes it actually returned (`capabilitiesFromScopes`); iCloud's
+  calendar capability comes from a live CalDAV probe at connect time. A row
+  with no `capabilities` predates calendar support and reads as `["email"]` —
+  it upgrades itself on the next reconnect, so there is nothing to backfill.
+- **`/mcp` is the canonical URL.** `/mcp/email` and `/mcp/calendar` exist as an
+  escape hatch for narrowly scoped agents, and get their own RFC 9728 metadata
+  through `.well-known/oauth-protected-resource/mcp/[[...surface]]`. A path can
+  only ever narrow the toolset — it is intersected with what the user actually
+  has connected, never trusted on its own.
+- **Adding a provider** means implementing `EmailProvider` or
+  `CalendarProvider` in `packages/core/src/providers` and wiring it into
+  `createProvider` / `createCalendarProvider` — don't special-case providers in
+  app code. Anything with a heavy dependency tree (IMAP, CalDAV) gets its own
+  `exports` subpath and is imported lazily, so a Gmail-only request never pays
+  for it.
+- **Apple is hand-rolled, on purpose.** `providers/icloud.ts` owns its IMAP
+  layer and `providers/icloudCalendar.ts` owns its CalDAV and XML, over the
+  RFC 5545 parser in `src/ical.ts`. Two rules there earn their keep: an update
+  patches the event's existing ICS so properties LifeOS doesn't model survive
+  untouched, and recurrence expands in wall-clock space so a 10am meeting stays
+  at 10am when the clocks change.
 - **Design** follows `brand/README.md`. Monochrome mark, indigo `#6366f1` for
   UI accents only. The CLI honours the same rule — indigo marks the one thing
   that's selected, nothing else.

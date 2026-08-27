@@ -38,8 +38,8 @@ const filterShape = {
     ),
 };
 
-export function registerReadTools({ server, session }: Kit) {
-  server.registerTool(
+export function registerReadTools({ register, session }: Kit) {
+  register(
     "search_emails",
     {
       title: "Search emails",
@@ -59,6 +59,8 @@ export function registerReadTools({ server, session }: Kit) {
           .describe("Per account, not in total."),
       },
       annotations: READ_ONLY,
+      surface: "email",
+      tier: "core",
     },
     handled(
       session,
@@ -113,7 +115,7 @@ export function registerReadTools({ server, session }: Kit) {
     ),
   );
 
-  server.registerTool(
+  register(
     "get_thread",
     {
       title: "Get a whole conversation",
@@ -127,6 +129,8 @@ export function registerReadTools({ server, session }: Kit) {
         ...bodyOptions,
       },
       annotations: READ_ONLY,
+      surface: "email",
+      tier: "core",
     },
     handled(
       session,
@@ -149,7 +153,7 @@ export function registerReadTools({ server, session }: Kit) {
     ),
   );
 
-  server.registerTool(
+  register(
     "get_message",
     {
       title: "Get one message",
@@ -161,6 +165,8 @@ export function registerReadTools({ server, session }: Kit) {
         ...bodyOptions,
       },
       annotations: READ_ONLY,
+      surface: "email",
+      tier: "core",
     },
     handled(
       session,

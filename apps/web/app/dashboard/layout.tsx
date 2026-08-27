@@ -46,6 +46,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           email: a.email,
           provider: a.provider,
           status: a.status,
+          capabilities: a.capabilities,
         }))}
         defaultCollapsed={jar.get("lifeos-sidebar")?.value === "collapsed"}
         signOut={signOutAction}

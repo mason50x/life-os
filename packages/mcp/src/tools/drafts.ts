@@ -18,8 +18,8 @@ import {
   handled,
 } from "./shared";
 
-export function registerDraftTools({ server, session }: Kit) {
-  server.registerTool(
+export function registerDraftTools({ register, session }: Kit) {
+  register(
     "create_draft",
     {
       title: "Save a draft",
@@ -44,6 +44,9 @@ export function registerDraftTools({ server, session }: Kit) {
           .describe("When replying, cc everyone else on the original too."),
       },
       annotations: CREATES,
+      surface: "email",
+      tier: "extended",
+      keywords: ["draft", "compose", "save for later", "review"],
     },
     handled(
       session,
@@ -98,7 +101,7 @@ export function registerDraftTools({ server, session }: Kit) {
     ),
   );
 
-  server.registerTool(
+  register(
     "list_drafts",
     {
       title: "List drafts",
@@ -109,6 +112,9 @@ export function registerDraftTools({ server, session }: Kit) {
         max_results: z.number().int().min(1).max(50).default(20),
       },
       annotations: READ_ONLY,
+      surface: "email",
+      tier: "extended",
+      keywords: ["draft", "unsent", "pending"],
     },
     handled(
       session,
@@ -120,7 +126,7 @@ export function registerDraftTools({ server, session }: Kit) {
     ),
   );
 
-  server.registerTool(
+  register(
     "update_draft",
     {
       title: "Rewrite a draft",
@@ -132,6 +138,9 @@ export function registerDraftTools({ server, session }: Kit) {
         ...composeShape,
       },
       annotations: REVERSIBLE,
+      surface: "email",
+      tier: "extended",
+      keywords: ["draft", "edit", "revise", "rewrite"],
     },
     handled(
       session,
@@ -164,7 +173,7 @@ export function registerDraftTools({ server, session }: Kit) {
     ),
   );
 
-  server.registerTool(
+  register(
     "send_draft",
     {
       title: "Send a draft",
@@ -175,6 +184,9 @@ export function registerDraftTools({ server, session }: Kit) {
         draft_id: z.string().describe("A draft id from list_drafts or create_draft."),
       },
       annotations: DESTRUCTIVE,
+      surface: "email",
+      tier: "extended",
+      keywords: ["draft", "send"],
     },
     handled(
       session,
@@ -190,7 +202,7 @@ export function registerDraftTools({ server, session }: Kit) {
     ),
   );
 
-  server.registerTool(
+  register(
     "delete_draft",
     {
       title: "Delete a draft",
@@ -198,6 +210,9 @@ export function registerDraftTools({ server, session }: Kit) {
         "Throws away an unsent draft. Drafts don't go to the trash, so this one really is gone — confirm with the user unless they asked for it.",
       inputSchema: { account, draft_id: z.string() },
       annotations: DESTRUCTIVE,
+      surface: "email",
+      tier: "extended",
+      keywords: ["draft", "discard", "delete"],
     },
     handled(
       session,

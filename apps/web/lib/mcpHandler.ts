@@ -9,7 +9,7 @@ import {
   type McpAuthInfo,
   type Surface,
 } from "@lifeos/mcp";
-import { getProviderForAccount, listAccounts } from "@/lib/accounts";
+import { getCalendarForAccount, getProviderForAccount, listAccounts } from "@/lib/accounts";
 import { appUrl, authkitDomain, mcpHost, mcpUrl } from "@/lib/env";
 
 /**
@@ -18,6 +18,14 @@ import { appUrl, authkitDomain, mcpHost, mcpUrl } from "@/lib/env";
  * the user actually has connected.
  */
 export const SURFACE_HEADER = "x-lifeos-surfaces";
+
+/**
+ * `?tools=all` (or this header) flattens the toolset: every tool advertised
+ * directly instead of the long tail sitting behind find_tools. Unlike the
+ * surface header this one is the client's to choose — it changes how much
+ * context the connection costs, not what it can reach.
+ */
+export const TOOLS_HEADER = "x-lifeos-tools";
 
 async function resolveSession(authInfo?: McpAuthInfo): Promise<LifeOsSession> {
   const userId = authInfo?.extra?.userId;
@@ -28,6 +36,7 @@ async function resolveSession(authInfo?: McpAuthInfo): Promise<LifeOsSession> {
     userId,
     listAccounts: () => listAccounts(userId),
     providerFor: (email) => getProviderForAccount(userId, email),
+    calendarFor: (email) => getCalendarForAccount(userId, email),
   };
 }
 
@@ -38,13 +47,16 @@ async function resolveSession(authInfo?: McpAuthInfo): Promise<LifeOsSession> {
  */
 const handlers = new Map<string, (req: Request) => Promise<Response>>();
 
-function handlerFor(surfaces: readonly Surface[]): (req: Request) => Promise<Response> {
-  const key = [...surfaces].sort().join(",") || "none";
+function handlerFor(
+  surfaces: readonly Surface[],
+  tools: "auto" | "all",
+): (req: Request) => Promise<Response> {
+  const key = `${[...surfaces].sort().join(",") || "none"}:${tools}`;
   const existing = handlers.get(key);
   if (existing) return existing;
   const handler = createMcpHandler(
     (server) => {
-      registerLifeOsTools(server, resolveSession, { surfaces });
+      registerLifeOsTools(server, resolveSession, { surfaces, tools });
     },
     {
       serverInfo: { name: "lifeos", version: "0.1.0" },
@@ -101,7 +113,8 @@ async function dispatch(req: Request): Promise<Response> {
     typeof userId === "string" && userId ? await surfacesForUser(userId) : ALL_SURFACES;
   const restriction = requestedSurfaces(req);
   const surfaces = restriction ? available.filter((s) => restriction.includes(s)) : available;
-  return handlerFor(surfaces)(req);
+  const tools = req.headers.get(TOOLS_HEADER) === "all" ? "all" : "auto";
+  return handlerFor(surfaces, tools)(req);
 }
 
 // MCP clients authenticate with AuthKit-issued JWTs (AuthKit is the OAuth
@@ -164,14 +177,18 @@ function normalise(req: Request, transport: string, surface: string | null): Req
   const url = new URL(req.url);
   const expected = `/${transport}`;
   const pathname = url.pathname.length > 1 ? url.pathname.replace(/\/$/, "") : url.pathname;
+  const flatten = url.searchParams.get("tools") === "all";
   // Nothing to rewrite and nothing to stamp — hand the original through rather
   // than rebuilding a streaming request for no reason.
-  if (pathname === expected && !surface && !req.headers.has(SURFACE_HEADER)) return req;
+  if (pathname === expected && !surface && !flatten && !req.headers.has(SURFACE_HEADER)) {
+    return req;
+  }
   url.pathname = expected;
   const headers = new Headers(req.headers);
   // Overwrite unconditionally: the path decides, not the caller.
   if (surface) headers.set(SURFACE_HEADER, surface);
   else headers.delete(SURFACE_HEADER);
+  if (flatten) headers.set(TOOLS_HEADER, "all");
   const init: RequestInit & { duplex?: "half" } = {
     method: req.method,
     headers,

@@ -36,6 +36,10 @@ export const upsert = mutation({
     refreshTokenEnc: v.optional(v.string()),
     accessTokenExpiresAt: v.number(),
     tokenClient: v.optional(v.union(v.literal("connect"), v.literal("authkit"))),
+    capabilities: v.optional(
+      v.array(v.union(v.literal("email"), v.literal("calendar"))),
+    ),
+    grantedScopes: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     assertServiceKey(args.serviceKey);
@@ -49,6 +53,10 @@ export const upsert = mutation({
         ...fields,
         // Keep the old refresh token if the provider didn't return a new one.
         refreshTokenEnc: fields.refreshTokenEnc ?? existing.refreshTokenEnc,
+        // Same rule for capabilities: a caller that doesn't mention them (a
+        // token refresh, say) must not silently strip calendar off the account.
+        capabilities: fields.capabilities ?? existing.capabilities,
+        grantedScopes: fields.grantedScopes ?? existing.grantedScopes,
         status: "active",
       });
       return existing._id;

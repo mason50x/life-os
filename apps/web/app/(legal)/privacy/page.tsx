@@ -10,13 +10,13 @@ export const metadata: Metadata = {
 
 const sections = [
   { id: "who-we-are", title: "Who we are" },
-  { id: "pass-through", title: "Your email is not stored" },
+  { id: "pass-through", title: "Your mail and calendar are not stored" },
   { id: "what-we-store", title: "What we do store" },
   { id: "cookies", title: "Cookies and tracking" },
   { id: "how-we-use", title: "How we use it" },
   { id: "google", title: "Google user data and Limited Use" },
   { id: "microsoft-apple", title: "Microsoft and Apple data" },
-  { id: "ai-clients", title: "When your AI client reads your mail" },
+  { id: "ai-clients", title: "When your AI client reads your mail or calendar" },
   { id: "sharing", title: "Who else touches your data" },
   { id: "retention", title: "Keeping and deleting" },
   { id: "security", title: "Security" },
@@ -70,23 +70,24 @@ export default function PrivacyPolicy() {
         </p>
       </Section>
 
-      <Section id="pass-through" n={2} title="Your email is not stored">
+      <Section id="pass-through" n={2} title="Your mail and calendar are not stored">
         <p>
           LifeOS is a pass-through, and that is the whole design. When your AI client asks for
-          something — search these threads, open this message, send this reply — the request goes
-          live to Gmail, Microsoft Graph, or iCloud in that moment. The answer comes back through
-          us and straight on to the client that asked.
+          something — search these threads, open this message, send this reply, what am I doing on
+          Thursday — the request goes live to Gmail, Google Calendar, Microsoft Graph, or iCloud in
+          that moment. The answer comes back through us and straight on to the client that asked.
         </p>
         <p>
-          Along the way, message content and metadata exist only in server memory for as long as
-          the request takes. We do not write them to our database, to a cache, to a search index,
-          or to a log file. There is no archive of your mail on our side, because there is nothing
-          to archive from.
+          Along the way, message content and metadata — and event titles, times, attendee lists and
+          calendar entries alike — exist only in server memory for as long as the request takes. We
+          do not write them to our database, to a cache, to a search index, or to a log file. There
+          is no archive of your mail or your calendar on our side, because there is nothing to
+          archive from.
         </p>
         <p>
           Practically, that means we cannot show you your own inbox history, we cannot recover a
-          message you deleted, and we cannot hand your mail to anyone else — including under a
-          subpoena — because we do not have it.
+          message or an event you deleted, and we cannot hand your mail or your calendar to anyone
+          else — including under a subpoena — because we do not have it.
         </p>
       </Section>
 
@@ -104,11 +105,12 @@ export default function PrivacyPolicy() {
           and we never see one.
         </p>
 
-        <h3>Connected mailboxes</h3>
+        <h3>Connected accounts</h3>
         <p>
-          For each inbox you connect: the provider (Gmail, Outlook, or iCloud), the email address,
+          For each account you connect: the provider (Gmail, Outlook, or iCloud), the email address,
           an optional display name, the sign-in address where it differs from the send-as address
-          (iCloud custom domains), the connection status, when you connected it, and the
+          (iCloud custom domains), the connection status, whether the connection covers mail,
+          calendar or both and the scopes the provider granted, when you connected it, and the
           credentials needed to reach it — OAuth access and refresh tokens, or, for iCloud, the
           app-specific password you generated. <strong>Credentials are encrypted with AES-256-GCM
           before they are stored</strong>, and the key that decrypts them is held in our
@@ -204,6 +206,14 @@ export default function PrivacyPolicy() {
             once, when you connect a Google account.
           </li>
           <li>
+            <code>https://www.googleapis.com/auth/calendar</code> — read and write access to your
+            Google calendars. LifeOS exposes listing calendars, reading events, finding free time,
+            creating and changing events, and responding to invitations as MCP tools. The narrower
+            events-only scope cannot list your calendars, which every one of those tools needs
+            first, so there is no smaller scope that works. It is requested in the same consent
+            screen as mail, and you can decline it there and still connect for mail.
+          </li>
+          <li>
             <code>gmail.settings.basic</code> — mailbox settings such as filters and the vacation
             responder, so those can be managed on your instruction rather than requiring a trip to
             Gmail.
@@ -247,9 +257,9 @@ export default function PrivacyPolicy() {
 
       <Section id="microsoft-apple" n={7} title="Microsoft and Apple data">
         <p>
-          The commitments in section 6 are not Google-specific. They apply identically to mail we
-          reach through Microsoft Graph and iCloud: not stored, not sold, not used for advertising,
-          not used to train models, not read by us.
+          The commitments in section 6 are not Google-specific. They apply identically to the mail
+          and calendar data we reach through Microsoft Graph and iCloud: not stored, not sold, not
+          used for advertising, not used to train models, not read by us.
         </p>
         <p>
           For Outlook and Microsoft 365 accounts we request <code>Mail.ReadWrite</code>,{" "}
@@ -263,8 +273,9 @@ export default function PrivacyPolicy() {
           .
         </p>
         <p>
-          iCloud has no OAuth for mail, so LifeOS uses the app-specific password you generate. It is
-          scoped to mail alone, encrypted before storage, and you can revoke it at{" "}
+          iCloud has no OAuth for mail, so LifeOS uses the app-specific password you generate. We
+          use it to reach iCloud Mail over IMAP and iCloud Calendar over CalDAV. It is encrypted
+          before storage, and you can revoke it at{" "}
           <a href="https://account.apple.com" target="_blank" rel="noreferrer">
             account.apple.com
           </a>{" "}
@@ -272,7 +283,7 @@ export default function PrivacyPolicy() {
         </p>
       </Section>
 
-      <Section id="ai-clients" n={8} title="When your AI client reads your mail">
+      <Section id="ai-clients" n={8} title="When your AI client reads your mail or calendar">
         <p>
           This section matters more than any other, so it gets said plainly.
         </p>
@@ -284,7 +295,8 @@ export default function PrivacyPolicy() {
           their behalf.
         </p>
         <p>
-          Asking an assistant to read your inbox means sending those messages to that assistant.
+          Asking an assistant to read your inbox or your calendar means sending those messages and
+          events to that assistant.
           That is what you connected LifeOS to do. Read the privacy terms of the clients you
           connect, connect only ones you trust, and revoke access from the dashboard when a client
           no longer needs it.
@@ -308,11 +320,12 @@ export default function PrivacyPolicy() {
           </li>
           <li>
             <strong>Vercel</strong> — hosting for the dashboard, the API, and the MCP endpoint.
-            Requests pass through it in transit; nothing about your mail is persisted there by us.
+            Requests pass through it in transit; nothing about your mail or calendar is persisted
+            there by us.
           </li>
           <li>
-            <strong>Google, Microsoft, and Apple</strong> — your mail providers, who hold the
-            mailboxes we reach on your behalf.
+            <strong>Google, Microsoft, and Apple</strong> — your mail and calendar providers, who
+            hold the mailboxes and calendars we reach on your behalf.
           </li>
         </ul>
         <p>

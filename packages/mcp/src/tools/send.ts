@@ -17,8 +17,8 @@ function sent(id: string, from: string, extra: Record<string, unknown> = {}) {
   return ok({ sent: true, from, ...(id && id !== "sent" ? { id } : {}), ...extra });
 }
 
-export function registerSendTools({ server, session }: Kit) {
-  server.registerTool(
+export function registerSendTools({ register, session }: Kit) {
+  register(
     "send_email",
     {
       title: "Send a new email",
@@ -26,6 +26,8 @@ export function registerSendTools({ server, session }: Kit) {
         "Starts a new conversation from one of the user's connected addresses. To answer an existing message use reply_email instead — it handles recipients, subject and threading, which this tool does not. Sending cannot be undone: show the user the recipients, subject and body and get their agreement first, unless they've already said to go ahead.",
       inputSchema: { account, ...composeShape },
       annotations: DESTRUCTIVE,
+      surface: "email",
+      tier: "core",
     },
     handled(
       session,
@@ -46,7 +48,7 @@ export function registerSendTools({ server, session }: Kit) {
     ),
   );
 
-  server.registerTool(
+  register(
     "reply_email",
     {
       title: "Reply to a message",
@@ -74,6 +76,8 @@ export function registerSendTools({ server, session }: Kit) {
         bcc: z.array(z.string()).optional(),
       },
       annotations: DESTRUCTIVE,
+      surface: "email",
+      tier: "core",
     },
     handled(
       session,
@@ -125,7 +129,7 @@ export function registerSendTools({ server, session }: Kit) {
     ),
   );
 
-  server.registerTool(
+  register(
     "forward_email",
     {
       title: "Forward a message",
@@ -143,6 +147,9 @@ export function registerSendTools({ server, session }: Kit) {
           .describe("Optional line of your own, placed above the forwarded message."),
       },
       annotations: DESTRUCTIVE,
+      surface: "email",
+      tier: "extended",
+      keywords: ["forward", "pass on", "share message"],
     },
     handled(
       session,

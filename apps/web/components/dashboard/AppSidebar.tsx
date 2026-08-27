@@ -3,7 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
-import type { Provider } from "@lifeos/core";
+import type { Capability, Provider } from "@lifeos/core";
 import {
   ArrowLeftStartOnRectangleIcon,
   CalendarDaysIcon,
@@ -35,13 +35,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
 import { AddAccountMenu } from "./AddAccountMenu";
-import { ProviderMark } from "./ProviderMark";
+import { ProviderMark, connectHref, providerCapabilities } from "./ProviderMark";
 
 export interface SidebarAccount {
   id: string;
   email: string;
   provider: Provider;
   status: "active" | "needs_reauth" | "disconnected";
+  capabilities: Capability[];
 }
 
 export interface SidebarUser {
@@ -72,7 +73,17 @@ export function AppSidebar({
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const [emailOpen, setEmailOpen] = useState(true);
-  const [calendarOpen, setCalendarOpen] = useState(false);
+
+  const calendars = accounts.filter((a) => a.capabilities.includes("calendar"));
+  // Mail-only accounts on a provider that also does calendar: one reconnect
+  // away, and the only reason the section would be shorter than the one above.
+  const pending = accounts.filter(
+    (a) =>
+      a.status === "active" &&
+      !a.capabilities.includes("calendar") &&
+      providerCapabilities[a.provider].includes("calendar"),
+  );
+  const [calendarOpen, setCalendarOpen] = useState(calendars.length > 0);
 
   function toggle() {
     setCollapsed((c) => {
@@ -174,7 +185,7 @@ export function AppSidebar({
           </AddAccountMenu>
         </Section>
 
-        {/* Calendar — nothing to show yet, but the shape of it is the promise. */}
+        {/* Calendar — the same accounts, listed by the other thing they grant. */}
         <Section
           icon={CalendarDaysIcon}
           label="Calendar"
@@ -182,15 +193,55 @@ export function AppSidebar({
           open={calendarOpen}
           onToggle={() => (collapsed ? reveal(setCalendarOpen) : setCalendarOpen((o) => !o))}
           trailing={
-            <Badge variant="secondary" className="h-4 px-1.5 text-[0.65rem] font-normal">
-              Soon
-            </Badge>
+            <span className="font-mono text-[0.7rem] text-muted-foreground">
+              {calendars.length}
+            </span>
           }
         >
-          <p className="px-2 py-1.5 text-xs leading-relaxed text-muted-foreground">
-            Google and Outlook calendars will land here — same connection, same pass-through
-            promise. Nothing to do yet.
-          </p>
+          {calendars.map((a) => (
+            <Link
+              key={a.id}
+              href={`/dashboard#account-${a.id}`}
+              title={a.email}
+              className="flex h-8 items-center gap-2.5 px-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <ProviderMark provider={a.provider} />
+              <span className="truncate">{a.email}</span>
+              {a.status !== "active" && (
+                <span
+                  aria-label="Needs re-auth"
+                  className="ml-auto size-1.5 shrink-0 rounded-full bg-destructive"
+                />
+              )}
+            </Link>
+          ))}
+
+          {/* An account linked before calendar existed holds a mail-only grant.
+              Reconnecting is additive — the same consent screen, one more tick. */}
+          {pending.map((a) => (
+            <a
+              key={a.id}
+              href={connectHref(a.provider)}
+              title={`Enable calendar for ${a.email}`}
+              className="flex h-8 items-center gap-2.5 px-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <ProviderMark provider={a.provider} className="opacity-40" />
+              <span className="truncate">{a.email}</span>
+              <Badge
+                variant="secondary"
+                className="ml-auto h-4 shrink-0 px-1.5 text-[0.65rem] font-normal"
+              >
+                Enable
+              </Badge>
+            </a>
+          ))}
+
+          {calendars.length === 0 && pending.length === 0 && (
+            <p className="px-2 py-1.5 text-xs leading-relaxed text-muted-foreground">
+              Connect a Google or iCloud account and its calendar comes with it — the same
+              connection, the same pass-through promise.
+            </p>
+          )}
         </Section>
 
         <div className="my-2 h-px bg-border" />
