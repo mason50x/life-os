@@ -106,8 +106,41 @@ function requestedSurfaces(req: Request): readonly Surface[] | null {
   return ALL_SURFACES.filter((s) => asked.includes(s));
 }
 
-/** Dispatch to the handler whose tool list matches this user and this URL. */
+/**
+ * mcp-handler answers GET and DELETE on the streamable-HTTP endpoint with this
+ * fixed JSON-RPC error: it serves no server-to-client stream there and has no
+ * session to terminate. Clients probe both anyway — a Streamable HTTP client
+ * opens the GET stream on connect and retries. Reaching that answer through
+ * `dispatch` costs a surfaces lookup and a fully built McpServer with every
+ * tool registered, so return the constant first. `/sse` and `/message` keep
+ * their own method rules inside mcp-handler.
+ */
+const STREAMABLE_METHOD_NOT_ALLOWED = new TextEncoder().encode(
+  JSON.stringify({
+    jsonrpc: "2.0",
+    error: { code: -32000, message: "Method not allowed." },
+    id: null,
+  }),
+);
+
+function methodNotAllowed(req: Request): Response | null {
+  if (req.method !== "GET" && req.method !== "DELETE") return null;
+  // `normalise` has already rewritten the path to the resolved transport.
+  if (new URL(req.url).pathname !== "/mcp") return null;
+  // Byte-identical to mcp-handler's own answer, down to carrying no
+  // Content-Type: it streams the body, and a string body here would pick up
+  // `text/plain` that clients do not see today.
+  return new Response(STREAMABLE_METHOD_NOT_ALLOWED, { status: 405 });
+}
+
+/**
+ * Dispatch to the handler whose tool list matches this user and this URL.
+ * Runs behind `withMcpAuth`, so an unauthenticated request still gets its 401
+ * and `WWW-Authenticate` discovery hint before any of this.
+ */
 async function dispatch(req: Request): Promise<Response> {
+  const notAllowed = methodNotAllowed(req);
+  if (notAllowed) return notAllowed;
   const userId = req.auth?.extra?.userId;
   const available =
     typeof userId === "string" && userId ? await surfacesForUser(userId) : ALL_SURFACES;
@@ -117,14 +150,30 @@ async function dispatch(req: Request): Promise<Response> {
   return handlerFor(surfaces, tools)(req);
 }
 
+/**
+ * jose keeps the fetched key set inside the object `createRemoteJWKSet`
+ * returns, so building one per call re-fetches the JWKS on every verification
+ * — which is every MCP message. Build it once per issuer instead and let jose
+ * do its own refresh; the issuer is read from env at call time, so it is the
+ * cache key rather than an assumed constant.
+ */
+const jwksByIssuer = new Map<string, ReturnType<typeof createRemoteJWKSet>>();
+
+function jwksFor(issuer: string): ReturnType<typeof createRemoteJWKSet> {
+  const existing = jwksByIssuer.get(issuer);
+  if (existing) return existing;
+  const jwks = createRemoteJWKSet(new URL(`${issuer}/oauth2/jwks`));
+  jwksByIssuer.set(issuer, jwks);
+  return jwks;
+}
+
 // MCP clients authenticate with AuthKit-issued JWTs (AuthKit is the OAuth
 // authorization server; it supports dynamic client registration out of the box).
 const verifyToken = async (_req: Request, bearerToken?: string) => {
   if (!bearerToken) return undefined;
   try {
     const issuer = authkitDomain();
-    const jwks = createRemoteJWKSet(new URL(`${issuer}/oauth2/jwks`));
-    const { payload } = await jwtVerify(bearerToken, jwks, { issuer });
+    const { payload } = await jwtVerify(bearerToken, jwksFor(issuer), { issuer });
     if (!payload.sub) return undefined;
     return {
       token: bearerToken,
